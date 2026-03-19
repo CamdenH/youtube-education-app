@@ -2,7 +2,37 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const express = require('express');
 const app = require('../../server');
+const { sendEvent } = require('../../sse');
+const { YouTubeQuotaError } = require('../../youtube');
+
+/**
+ * Creates a fresh Express app with a /api/course-stream route that uses the
+ * same wrapper pattern as server.js but with an injected mock handler.
+ * This avoids the module-cache binding issue (server.js captures courseStreamHandler
+ * at require time, so monkey-patching sse.courseStreamHandler has no effect).
+ */
+function makeTestApp(mockHandler) {
+  const testApp = express();
+  testApp.get('/api/course-stream', async (req, res) => {
+    try {
+      await mockHandler(req, res);
+    } catch (err) {
+      if (res.headersSent) {
+        if (err instanceof YouTubeQuotaError) {
+          sendEvent(res, 'error', { code: 'QUOTA_EXCEEDED', message: 'YouTube quota exceeded. Try again tomorrow.' });
+        } else {
+          sendEvent(res, 'error', { code: 'INTERNAL', message: err.message });
+        }
+        res.end();
+      } else {
+        res.status(500).json({ error: err.message });
+      }
+    }
+  });
+  return testApp;
+}
 
 test('GET / returns 200 and HTML content', async () => {
   const server = app.listen(0);
@@ -67,6 +97,55 @@ test('GET /nonexistent returns 404', async () => {
   try {
     const res = await fetch(`http://localhost:${port}/nonexistent-api-route`);
     assert.strictEqual(res.status, 404);
+  } finally {
+    server.close();
+  }
+});
+
+test('quota error in stream emits SSE error event with QUOTA_EXCEEDED code', async () => {
+  // Handler that sets SSE headers then throws YouTubeQuotaError
+  const mockHandler = async (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    throw new YouTubeQuotaError('YouTube API quota exceeded. Try again tomorrow.');
+  };
+
+  const testApp = makeTestApp(mockHandler);
+  const server = testApp.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/api/course-stream`);
+    assert.strictEqual(res.status, 200);
+    const text = await res.text();
+    assert.ok(text.includes('event: error'), `Expected SSE error event, got: ${text.slice(0, 300)}`);
+    assert.ok(text.includes('QUOTA_EXCEEDED'), `Expected QUOTA_EXCEEDED code, got: ${text.slice(0, 300)}`);
+  } finally {
+    server.close();
+  }
+});
+
+test('generic error in stream emits SSE error event with INTERNAL code', async () => {
+  // Handler that sets SSE headers then throws a generic Error
+  const mockHandler = async (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    throw new Error('something broke');
+  };
+
+  const testApp = makeTestApp(mockHandler);
+  const server = testApp.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/api/course-stream`);
+    assert.strictEqual(res.status, 200);
+    const text = await res.text();
+    assert.ok(text.includes('event: error'), `Expected SSE error event, got: ${text.slice(0, 300)}`);
+    assert.ok(text.includes('INTERNAL'), `Expected INTERNAL code, got: ${text.slice(0, 300)}`);
+    assert.ok(text.includes('something broke'), `Expected error message, got: ${text.slice(0, 300)}`);
   } finally {
     server.close();
   }
