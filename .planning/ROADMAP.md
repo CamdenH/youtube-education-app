@@ -30,7 +30,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. YouTube search queries return video results and full stats; identical queries hit the .cache/ file rather than the API
   4. GET /api/transcript/:videoId returns a raw transcript or a meaningful error without a 403
   5. YouTube quota errors produce a user-readable SSE event, not a raw 403 crash
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Project scaffolding and file-based dev cache
+- [ ] 01-02-PLAN.md — SSE streaming infrastructure and Claude API utilities
+- [ ] 01-03-PLAN.md — YouTube API client and transcript fetching
+- [ ] 01-04-PLAN.md — Server assembly and SSE stub frontend
 
 ### Phase 2: Scoring + Query Generation
 **Goal**: Given a subject and skill level, Claude generates targeted search queries, each candidate video receives a 0-100 score with correct weighting for the given level, and channel credibility scores are retrieved in a single Claude batch call
@@ -81,11 +87,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/4 | Planning complete | - |
 | 2. Scoring + Query Generation | 0/TBD | Not started | - |
 | 3. Transcript + Course Assembly | 0/TBD | Not started | - |
 | 4. Frontend + Persistence + Export | 0/TBD | Not started | - |
