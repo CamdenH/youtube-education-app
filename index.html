@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>YouTube Learning Curator</title>
+  <style>
+    :root {
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+      --space-3xl: 64px;
+
+      --font-size-label: 14px;
+      --font-size-body: 16px;
+      --font-size-heading: 20px;
+      --font-size-display: 28px;
+      --font-weight-regular: 400;
+      --font-weight-semibold: 600;
+      --line-height-body: 1.5;
+      --line-height-label: 1.4;
+      --line-height-heading: 1.2;
+      --line-height-display: 1.15;
+
+      --color-bg: #0f0f0f;
+      --color-surface: #1a1a1a;
+      --color-surface-raised: #242424;
+      --color-text: #f0f0f0;
+      --color-text-muted: #a0a0a0;
+      --color-accent: #3b82f6;
+      --color-success: #22c55e;
+      --color-destructive: #ef4444;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: var(--font-size-body);
+      line-height: var(--line-height-body);
+      margin: 0;
+      padding: 0;
+    }
+
+    main {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: var(--space-lg);
+    }
+
+    h1 {
+      font-size: var(--font-size-display);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-display);
+      color: var(--color-text);
+      margin: 0 0 var(--space-xs) 0;
+    }
+
+    .subtitle {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      margin: 0 0 var(--space-xl) 0;
+    }
+
+    /* Connect section */
+    #connect {
+      background: var(--color-surface);
+      padding: var(--space-lg);
+      border-radius: 8px;
+      margin-bottom: var(--space-xl);
+    }
+
+    #btn-connect {
+      background: var(--color-accent);
+      color: white;
+      border: none;
+      padding: var(--space-sm) var(--space-md);
+      border-radius: 4px;
+      font-size: var(--font-size-body);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    #btn-connect:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Progress bar */
+    .progress-track {
+      background: var(--color-surface-raised);
+      height: 4px;
+      border-radius: 2px;
+      margin-top: var(--space-md);
+      overflow: hidden;
+    }
+
+    #progress-fill {
+      background: var(--color-accent);
+      height: 100%;
+      border-radius: 2px;
+      width: 0%;
+      transition: width 300ms ease;
+    }
+
+    /* Event log section */
+    #event-log {
+      background: var(--color-surface);
+      padding: var(--space-lg);
+      border-radius: 8px;
+    }
+
+    .empty-state-heading {
+      font-size: var(--font-size-heading);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-heading);
+      color: var(--color-text);
+      margin: 0 0 var(--space-xs) 0;
+    }
+
+    .empty-state-body {
+      font-size: var(--font-size-body);
+      color: var(--color-text-muted);
+      margin: 0;
+    }
+
+    /* Event rows */
+    .event-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-xs) 0;
+    }
+
+    .event-item + .event-item {
+      border-top: 1px solid var(--color-surface-raised);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .event-name {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      font-family: monospace;
+      flex-shrink: 0;
+    }
+
+    .event-message {
+      font-size: var(--font-size-body);
+      color: var(--color-text);
+      flex: 1;
+    }
+
+    .event-time {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>YouTube Learning Curator</h1>
+    <p class="subtitle">SSE connection test &mdash; Phase 1 stub</p>
+
+    <section id="connect">
+      <button id="btn-connect">Connect to SSE</button>
+      <div class="progress-track">
+        <div id="progress-fill"></div>
+      </div>
+    </section>
+
+    <section id="event-log">
+      <div id="empty-state">
+        <h2 class="empty-state-heading">No events yet</h2>
+        <p class="empty-state-body">Click Connect to SSE to open the stream.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('btn-connect');
+      const progressFill = document.getElementById('progress-fill');
+      const eventLog = document.getElementById('event-log');
+      const emptyState = document.getElementById('empty-state');
+      let eventSource = null;
+      let startTime = null;
+
+      btn.addEventListener('click', () => {
+        // Reset state
+        eventLog.querySelectorAll('.event-item').forEach(el => el.remove());
+        emptyState.style.display = 'block';
+        progressFill.style.width = '0%';
+        progressFill.style.background = 'var(--color-accent)';
+        btn.textContent = 'Connecting...';
+        btn.disabled = true;
+        startTime = Date.now();
+
+        eventSource = new EventSource('/api/course-stream');
+
+        eventSource.onopen = () => {
+          btn.textContent = 'Streaming...';
+          emptyState.style.display = 'none';
+        };
+
+        const EVENTS = ['query_generated', 'videos_fetched', 'scored', 'transcripts_fetched', 'course_assembled'];
+        EVENTS.forEach(eventName => {
+          eventSource.addEventListener(eventName, (e) => {
+            const data = JSON.parse(e.data);
+            addEventRow(eventName, data, eventName === 'course_assembled' ? '--color-success' : '--color-accent');
+            progressFill.style.width = `${(data.step / data.total) * 100}%`;
+
+            if (eventName === 'course_assembled') {
+              progressFill.style.background = 'var(--color-success)';
+              btn.textContent = 'Connect to SSE';
+              btn.disabled = false;
+              eventSource.close();
+            }
+          });
+        });
+
+        eventSource.addEventListener('error', (e) => {
+          let data;
+          try { data = JSON.parse(e.data); } catch { data = { message: 'Something went wrong. Check the server logs.' }; }
+          addEventRow('error', data, '--color-destructive');
+          progressFill.style.background = 'var(--color-destructive)';
+          btn.textContent = 'Connect to SSE';
+          btn.disabled = false;
+          eventSource.close();
+        });
+
+        eventSource.onerror = () => {
+          // Native EventSource error (connection lost, not a named 'error' event)
+          btn.textContent = 'Connect to SSE';
+          btn.disabled = false;
+          if (eventSource) eventSource.close();
+        };
+      });
+
+      function addEventRow(eventName, data, dotColor) {
+        emptyState.style.display = 'none';
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        const row = document.createElement('div');
+        row.className = 'event-item';
+        row.innerHTML = `
+          <span class="dot" style="background: var(${dotColor})"></span>
+          <span class="event-name">${eventName}</span>
+          <span class="event-message">${data.message || ''}</span>
+          <span class="event-time">${elapsed}s</span>
+        `;
+        eventLog.appendChild(row);
+      }
+    });
+  </script>
+</body>
+</html>
