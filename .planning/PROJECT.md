@@ -12,7 +12,14 @@ Surface the best YouTube content for learning a subject with maximum curation pr
 
 ### Validated
 
-(None yet — ship to validate)
+**Validated in Phase 01: Foundation**
+- File-based dev cache module (MD5-keyed, .cache/ directory)
+- SSE streaming infrastructure (sendEvent, sendHeartbeat, courseStreamHandler with 5-event stub pipeline)
+- Claude API utility (retry wrapper, JSON fence-stripping)
+- YouTube Data API v3 client (searchVideos, fetchVideoStats, quota error handling)
+- Transcript fetching (timedtext XML parsing, cache-first, description fallback)
+- Express server entry point wiring all modules
+- SSE stub frontend (index.html) with EventSource connection
 
 ### Active
 
@@ -67,4 +74,4 @@ Surface the best YouTube content for learning a subject with maximum curation pr
 | Export = course outline only (no user answers) | Clean shareable study guide; personal answers stay private in the browser | — Pending |
 
 ---
-*Last updated: 2026-03-18 after initialization*
+*Last updated: 2026-03-19 — Phase 01 complete*
