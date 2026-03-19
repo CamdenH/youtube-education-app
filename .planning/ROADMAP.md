@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. YouTube search queries return video results and full stats; identical queries hit the .cache/ file rather than the API
   4. GET /api/transcript/:videoId returns a raw transcript or a meaningful error without a 403
   5. YouTube quota errors produce a user-readable SSE event, not a raw 403 crash
-**Plans:** 4 plans
+**Plans:** 2/4 plans executed
 
 Plans:
 - [ ] 01-01-PLAN.md — Project scaffolding and file-based dev cache
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/4 | Planning complete | - |
+| 1. Foundation | 2/4 | In Progress|  |
 | 2. Scoring + Query Generation | 0/TBD | Not started | - |
 | 3. Transcript + Course Assembly | 0/TBD | Not started | - |
 | 4. Frontend + Persistence + Export | 0/TBD | Not started | - |

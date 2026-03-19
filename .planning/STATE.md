@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: "Completed 01-01-PLAN.md"
-last_updated: "2026-03-19T08:24:15Z"
+status: unknown
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-03-19T08:28:20.275Z"
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -46,6 +46,7 @@ Plan: 2 of 4 (01-01 complete)
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01 P02 | 4 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,9 @@ Recent decisions affecting current work:
 - 01-01: YouTube API via raw fetch() — googleapis package is overkill for simple API key + REST calls
 - 01-01: Cache keys use MD5 hash (node:crypto) — deterministic, reproducible, human-debuggable filenames
 - 01-01: node:test built-in as test runner — zero install cost, async support, sufficient for pure functions
+- [Phase 01]: Added _delayMs=800 injectable parameter to courseStreamHandler for test-friendly execution without real timer mocking
+- [Phase 01]: callClaude accepts _testDelayBase options object as last positional arg for fast retry testing without slow real delays
+- [Phase 01]: node:test mock.timers does not support clearInterval as mockable API in Node 22.22 — only setInterval and setTimeout are supported
 
 ### Pending Todos
 
@@ -74,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T08:24:15Z
-Stopped at: Completed 01-01-PLAN.md
-Resume file: .planning/phases/01-foundation/01-02-PLAN.md
+Last session: 2026-03-19T08:28:20.272Z
+Stopped at: Completed 01-02-PLAN.md
+Resume file: None
