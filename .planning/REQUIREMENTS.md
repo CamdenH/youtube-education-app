@@ -11,7 +11,7 @@
 - [ ] **PIPE-02**: Server generates 6-8 targeted YouTube search queries via Claude, shaped by skill level (beginner → intro/overview queries, advanced → lecture/deep-dive queries)
 - [ ] **PIPE-03**: YouTube Data API v3 search called per query (type: video, maxResults: 8, duration: medium/long, language: en, safeSearch: strict)
 - [ ] **PIPE-04**: Full video stats fetched for each result (snippet, statistics, contentDetails, topicDetails)
-- [ ] **PIPE-05**: Dev caching layer (file-based) prevents quota exhaustion during development iteration
+- [x] **PIPE-05**: Dev caching layer (file-based) prevents quota exhaustion during development iteration
 - [ ] **PIPE-06**: GET /api/course-stream SSE endpoint streams named progress events to frontend as pipeline runs (query_generated, videos_fetched, scored, transcripts_fetched, course_assembled)
 - [ ] **PIPE-07**: GET /api/transcript/:videoId returns raw transcript for a given video
 
@@ -81,7 +81,7 @@
 - [ ] **INFR-03**: Claude JSON responses stripped and validated before use; malformed responses trigger a retry
 - [ ] **INFR-04**: YouTube API quota errors surface as a friendly user-facing message (not a raw 403)
 - [ ] **INFR-05**: SSE connection sends a heartbeat comment every 15 seconds; frontend closes EventSource on terminal events to prevent auto-reconnect restarts
-- [ ] **INFR-06**: .env.example and README.md with setup instructions (npm install, key acquisition URLs, node server.js, open localhost:3000)
+- [x] **INFR-06**: .env.example and README.md with setup instructions (npm install, key acquisition URLs, node server.js, open localhost:3000)
 
 ## v2 Requirements
 
@@ -118,7 +118,7 @@
 | PIPE-02 | Phase 2 | Pending |
 | PIPE-03 | Phase 1 | Pending |
 | PIPE-04 | Phase 1 | Pending |
-| PIPE-05 | Phase 1 | Pending |
+| PIPE-05 | Phase 1 | Complete |
 | PIPE-06 | Phase 1 | Pending |
 | PIPE-07 | Phase 1 | Pending |
 | SCOR-01 | Phase 2 | Pending |
@@ -161,7 +161,7 @@
 | INFR-03 | Phase 1 | Pending |
 | INFR-04 | Phase 1 | Pending |
 | INFR-05 | Phase 1 | Pending |
-| INFR-06 | Phase 1 | Pending |
+| INFR-06 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 48 total
