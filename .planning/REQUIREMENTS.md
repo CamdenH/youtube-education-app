@@ -112,17 +112,62 @@
 
 ## Traceability
 
-*To be populated during roadmap creation.*
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmapper) | — | Pending |
+| PIPE-01 | Phase 2 | Pending |
+| PIPE-02 | Phase 2 | Pending |
+| PIPE-03 | Phase 1 | Pending |
+| PIPE-04 | Phase 1 | Pending |
+| PIPE-05 | Phase 1 | Pending |
+| PIPE-06 | Phase 1 | Pending |
+| PIPE-07 | Phase 1 | Pending |
+| SCOR-01 | Phase 2 | Pending |
+| SCOR-02 | Phase 2 | Pending |
+| SCOR-03 | Phase 2 | Pending |
+| SCOR-04 | Phase 2 | Pending |
+| SCOR-05 | Phase 2 | Pending |
+| TRAN-01 | Phase 3 | Pending |
+| TRAN-02 | Phase 3 | Pending |
+| TRAN-03 | Phase 3 | Pending |
+| CURA-01 | Phase 3 | Pending |
+| CURA-02 | Phase 3 | Pending |
+| CURA-03 | Phase 3 | Pending |
+| CURA-04 | Phase 3 | Pending |
+| CURA-05 | Phase 3 | Pending |
+| CURA-06 | Phase 3 | Pending |
+| CURA-07 | Phase 3 | Pending |
+| QUES-01 | Phase 3 | Pending |
+| QUES-02 | Phase 3 | Pending |
+| QUES-03 | Phase 3 | Pending |
+| HINT-01 | Phase 5 | Pending |
+| HINT-02 | Phase 5 | Pending |
+| HINT-03 | Phase 5 | Pending |
+| FRNT-01 | Phase 4 | Pending |
+| FRNT-02 | Phase 4 | Pending |
+| FRNT-03 | Phase 4 | Pending |
+| FRNT-04 | Phase 4 | Pending |
+| FRNT-05 | Phase 4 | Pending |
+| FRNT-06 | Phase 4 | Pending |
+| FRNT-07 | Phase 4 | Pending |
+| FRNT-08 | Phase 4 | Pending |
+| FRNT-09 | Phase 4 | Pending |
+| FRNT-10 | Phase 4 | Pending |
+| PERS-01 | Phase 4 | Pending |
+| PERS-02 | Phase 4 | Pending |
+| PERS-03 | Phase 4 | Pending |
+| EXPO-01 | Phase 4 | Pending |
+| INFR-01 | Phase 1 | Pending |
+| INFR-02 | Phase 1 | Pending |
+| INFR-03 | Phase 1 | Pending |
+| INFR-04 | Phase 1 | Pending |
+| INFR-05 | Phase 1 | Pending |
+| INFR-06 | Phase 1 | Pending |
 
 **Coverage:**
-- v1 requirements: 38 total
-- Mapped to phases: 0
-- Unmapped: 38 ⚠️
+- v1 requirements: 48 total
+- Mapped to phases: 48
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-18*
-*Last updated: 2026-03-18 after initial definition*
+*Last updated: 2026-03-18 after roadmap creation*
