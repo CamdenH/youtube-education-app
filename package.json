@@ -1,0 +1,14 @@
+{
+  "name": "youtube-learning-curator",
+  "version": "1.0.0",
+  "description": "Surface the best YouTube content for learning a subject",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/unit/*.test.js"
+  },
+  "dependencies": {
+    "express": "^4.18",
+    "dotenv": "^16"
+  }
+}
