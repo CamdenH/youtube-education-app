@@ -12,7 +12,7 @@ Four phases deliver the complete pipeline in dependency order: infrastructure an
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Express server, SSE infrastructure, YouTube API client, and dev caching layer
+- [x] **Phase 1: Foundation** - Express server, SSE infrastructure, YouTube API client, and dev caching layer (completed 2026-03-19)
 - [ ] **Phase 2: Scoring + Query Generation** - Full scoring engine, channel credibility via Claude, and Claude query generation
 - [ ] **Phase 3: Transcript + Course Assembly** - Timedtext transcript fetch, Claude course assembly, module structure, and comprehension questions
 - [ ] **Phase 4: Frontend + Persistence + Export** - Complete index.html, SSE-driven loading state, localStorage, progress tracking, and markdown export
@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. YouTube search queries return video results and full stats; identical queries hit the .cache/ file rather than the API
   4. GET /api/transcript/:videoId returns a raw transcript or a meaningful error without a 403
   5. YouTube quota errors produce a user-readable SSE event, not a raw 403 crash
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 01-01-PLAN.md — Project scaffolding and file-based dev cache
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 3/4 | In Progress|  |
+| 1. Foundation | 4/4 | Complete   | 2026-03-19 |
 | 2. Scoring + Query Generation | 0/TBD | Not started | - |
 | 3. Transcript + Course Assembly | 0/TBD | Not started | - |
 | 4. Frontend + Persistence + Export | 0/TBD | Not started | - |

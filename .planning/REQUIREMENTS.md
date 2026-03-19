@@ -76,7 +76,7 @@
 
 ### Infrastructure
 
-- [ ] **INFR-01**: Node.js + Express server (server.js) serves static index.html and API routes; API keys loaded from .env via dotenv
+- [x] **INFR-01**: Node.js + Express server (server.js) serves static index.html and API routes; API keys loaded from .env via dotenv
 - [x] **INFR-02**: Claude API calls include retry logic (max 2 retries) with exponential backoff
 - [x] **INFR-03**: Claude JSON responses stripped and validated before use; malformed responses trigger a retry
 - [x] **INFR-04**: YouTube API quota errors surface as a friendly user-facing message (not a raw 403)
@@ -156,7 +156,7 @@
 | PERS-02 | Phase 4 | Pending |
 | PERS-03 | Phase 4 | Pending |
 | EXPO-01 | Phase 4 | Pending |
-| INFR-01 | Phase 1 | Pending |
+| INFR-01 | Phase 1 | Complete |
 | INFR-02 | Phase 1 | Complete |
 | INFR-03 | Phase 1 | Complete |
 | INFR-04 | Phase 1 | Complete |
