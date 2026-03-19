@@ -9,11 +9,11 @@
 
 - [ ] **PIPE-01**: User can submit a subject + skill level (beginner/intermediate/advanced/all) to trigger course generation
 - [ ] **PIPE-02**: Server generates 6-8 targeted YouTube search queries via Claude, shaped by skill level (beginner → intro/overview queries, advanced → lecture/deep-dive queries)
-- [ ] **PIPE-03**: YouTube Data API v3 search called per query (type: video, maxResults: 8, duration: medium/long, language: en, safeSearch: strict)
-- [ ] **PIPE-04**: Full video stats fetched for each result (snippet, statistics, contentDetails, topicDetails)
+- [x] **PIPE-03**: YouTube Data API v3 search called per query (type: video, maxResults: 8, duration: medium/long, language: en, safeSearch: strict)
+- [x] **PIPE-04**: Full video stats fetched for each result (snippet, statistics, contentDetails, topicDetails)
 - [x] **PIPE-05**: Dev caching layer (file-based) prevents quota exhaustion during development iteration
 - [x] **PIPE-06**: GET /api/course-stream SSE endpoint streams named progress events to frontend as pipeline runs (query_generated, videos_fetched, scored, transcripts_fetched, course_assembled)
-- [ ] **PIPE-07**: GET /api/transcript/:videoId returns raw transcript for a given video
+- [x] **PIPE-07**: GET /api/transcript/:videoId returns raw transcript for a given video
 
 ### Scoring
 
@@ -79,7 +79,7 @@
 - [ ] **INFR-01**: Node.js + Express server (server.js) serves static index.html and API routes; API keys loaded from .env via dotenv
 - [x] **INFR-02**: Claude API calls include retry logic (max 2 retries) with exponential backoff
 - [x] **INFR-03**: Claude JSON responses stripped and validated before use; malformed responses trigger a retry
-- [ ] **INFR-04**: YouTube API quota errors surface as a friendly user-facing message (not a raw 403)
+- [x] **INFR-04**: YouTube API quota errors surface as a friendly user-facing message (not a raw 403)
 - [x] **INFR-05**: SSE connection sends a heartbeat comment every 15 seconds; frontend closes EventSource on terminal events to prevent auto-reconnect restarts
 - [x] **INFR-06**: .env.example and README.md with setup instructions (npm install, key acquisition URLs, node server.js, open localhost:3000)
 
@@ -116,11 +116,11 @@
 |-------------|-------|--------|
 | PIPE-01 | Phase 2 | Pending |
 | PIPE-02 | Phase 2 | Pending |
-| PIPE-03 | Phase 1 | Pending |
-| PIPE-04 | Phase 1 | Pending |
+| PIPE-03 | Phase 1 | Complete |
+| PIPE-04 | Phase 1 | Complete |
 | PIPE-05 | Phase 1 | Complete |
 | PIPE-06 | Phase 1 | Complete |
-| PIPE-07 | Phase 1 | Pending |
+| PIPE-07 | Phase 1 | Complete |
 | SCOR-01 | Phase 2 | Pending |
 | SCOR-02 | Phase 2 | Pending |
 | SCOR-03 | Phase 2 | Pending |
@@ -159,7 +159,7 @@
 | INFR-01 | Phase 1 | Pending |
 | INFR-02 | Phase 1 | Complete |
 | INFR-03 | Phase 1 | Complete |
-| INFR-04 | Phase 1 | Pending |
+| INFR-04 | Phase 1 | Complete |
 | INFR-05 | Phase 1 | Complete |
 | INFR-06 | Phase 1 | Complete |
 

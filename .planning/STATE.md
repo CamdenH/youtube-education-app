@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-03-19T08:28:20.275Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-03-19T08:34:06.105Z"
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -47,6 +47,7 @@ Plan: 2 of 4 (01-01 complete)
 
 *Updated after each plan completion*
 | Phase 01 P02 | 4 | 2 tasks | 4 files |
+| Phase 01-foundation P03 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,9 @@ Recent decisions affecting current work:
 - [Phase 01]: Added _delayMs=800 injectable parameter to courseStreamHandler for test-friendly execution without real timer mocking
 - [Phase 01]: callClaude accepts _testDelayBase options object as last positional arg for fast retry testing without slow real delays
 - [Phase 01]: node:test mock.timers does not support clearInterval as mockable API in Node 22.22 — only setInterval and setTimeout are supported
+- [Phase 01-foundation]: videoDuration: 'any' in searchVideos (PIPE-03 deviation) — duration filtering deferred to Phase 2 scoring to save API quota
+- [Phase 01-foundation]: fetchVideoStats batches all uncached IDs into single videos.list API call — one request regardless of ID count
+- [Phase 01-foundation]: fetchTranscript returns null on network failure — callers implement fallback, no exception propagation
 
 ### Pending Todos
 
@@ -78,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T08:28:20.272Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-03-19T08:34:06.102Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
