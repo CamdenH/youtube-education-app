@@ -1,6 +1,6 @@
 'use strict';
 
-const { test, describe, before } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
@@ -52,7 +52,6 @@ test('sendEvent writes correctly formatted SSE named event with double newline',
   const res = makeMockRes();
   sendEvent(res, 'videos_fetched', { step: 2, total: 5, message: 'Fetched 48 videos' });
 
-  // The combined writes should equal the expected SSE event string
   const combined = res.writes.join('');
   assert.equal(
     combined,
@@ -63,7 +62,6 @@ test('sendEvent writes correctly formatted SSE named event with double newline',
 test('sendEvent uses res.write (not res.send or res.end)', () => {
   const res = makeMockRes();
   sendEvent(res, 'test_event', { foo: 'bar' });
-  // If writes array has content, res.write was called
   assert.ok(res.writes.length > 0, 'res.write should be called');
   assert.equal(res.ended, false, 'res.end should not be called');
 });
@@ -81,18 +79,17 @@ test('sendHeartbeat writes exactly `: heartbeat\\n\\n` to res', () => {
 // ─── startHeartbeat ──────────────────────────────────────────────────────────
 
 test('startHeartbeat returns an interval ID that can be passed to clearInterval', (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'clearInterval'] });
+  t.mock.timers.enable({ apis: ['setInterval'] });
 
   const res = makeMockRes();
   const intervalId = startHeartbeat(res);
 
-  // intervalId must be truthy and clearInterval must not throw
-  assert.ok(intervalId, 'startHeartbeat should return an interval ID');
+  assert.ok(intervalId !== undefined && intervalId !== null, 'startHeartbeat should return an interval ID');
   assert.doesNotThrow(() => clearInterval(intervalId));
 });
 
 test('startHeartbeat writes a heartbeat after 15 seconds', (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'clearInterval'] });
+  t.mock.timers.enable({ apis: ['setInterval'] });
 
   const res = makeMockRes();
   const intervalId = startHeartbeat(res);
@@ -107,19 +104,14 @@ test('startHeartbeat writes a heartbeat after 15 seconds', (t) => {
 });
 
 // ─── courseStreamHandler ─────────────────────────────────────────────────────
+// Use delayMs=0 to avoid real 800ms delays in tests. The third parameter is
+// an injected delay override documented in sse.js for testing purposes.
 
-test('courseStreamHandler sets all 4 required SSE headers', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'clearInterval', 'setTimeout'] });
-
+test('courseStreamHandler sets all 4 required SSE headers', async () => {
   const res = makeMockRes();
   const req = makeMockReq();
 
-  const handlerPromise = courseStreamHandler(req, res);
-
-  // Tick past all 5 events (5 × 800ms = 4000ms) plus a buffer
-  t.mock.timers.tick(5000);
-
-  await handlerPromise;
+  await courseStreamHandler(req, res, 0);
 
   assert.equal(res.headers['Content-Type'], 'text/event-stream');
   assert.equal(res.headers['Cache-Control'], 'no-cache');
@@ -127,28 +119,20 @@ test('courseStreamHandler sets all 4 required SSE headers', async (t) => {
   assert.equal(res.headers['X-Accel-Buffering'], 'no');
 });
 
-test('courseStreamHandler calls res.flushHeaders()', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'clearInterval', 'setTimeout'] });
-
+test('courseStreamHandler calls res.flushHeaders()', async () => {
   const res = makeMockRes();
   const req = makeMockReq();
 
-  const handlerPromise = courseStreamHandler(req, res);
-  t.mock.timers.tick(5000);
-  await handlerPromise;
+  await courseStreamHandler(req, res, 0);
 
   assert.equal(res.flushed, true, 'res.flushHeaders() should be called');
 });
 
-test('courseStreamHandler emits all 5 named events in order', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'clearInterval', 'setTimeout'] });
-
+test('courseStreamHandler emits all 5 named events in order', async () => {
   const res = makeMockRes();
   const req = makeMockReq();
 
-  const handlerPromise = courseStreamHandler(req, res);
-  t.mock.timers.tick(5000);
-  await handlerPromise;
+  await courseStreamHandler(req, res, 0);
 
   const combined = res.writes.join('');
   const expectedOrder = [
@@ -167,17 +151,12 @@ test('courseStreamHandler emits all 5 named events in order', async (t) => {
   }
 });
 
-test('courseStreamHandler emits events with correct payload shape { step, total, message }', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'clearInterval', 'setTimeout'] });
-
+test('courseStreamHandler emits events with correct payload shape { step, total, message }', async () => {
   const res = makeMockRes();
   const req = makeMockReq();
 
-  const handlerPromise = courseStreamHandler(req, res);
-  t.mock.timers.tick(5000);
-  await handlerPromise;
+  await courseStreamHandler(req, res, 0);
 
-  // Extract data lines
   const combined = res.writes.join('');
   const dataLines = combined.split('\n').filter(l => l.startsWith('data: '));
 
@@ -191,22 +170,16 @@ test('courseStreamHandler emits events with correct payload shape { step, total,
   }
 });
 
-test('courseStreamHandler course_assembled event has a course field', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'clearInterval', 'setTimeout'] });
-
+test('courseStreamHandler course_assembled event has a course field', async () => {
   const res = makeMockRes();
   const req = makeMockReq();
 
-  const handlerPromise = courseStreamHandler(req, res);
-  t.mock.timers.tick(5000);
-  await handlerPromise;
+  await courseStreamHandler(req, res, 0);
 
   const combined = res.writes.join('');
-  // Find the course_assembled event block
   const idx = combined.indexOf('event: course_assembled');
   assert.ok(idx !== -1, 'course_assembled event should exist');
 
-  // The data line follows the event line
   const after = combined.slice(idx);
   const dataLine = after.split('\n').find(l => l.startsWith('data: '));
   assert.ok(dataLine, 'course_assembled should have a data line');
@@ -216,15 +189,11 @@ test('courseStreamHandler course_assembled event has a course field', async (t) 
   assert.ok(payload.course.title, 'course should have a title');
 });
 
-test('courseStreamHandler calls res.end() after the terminal event', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'clearInterval', 'setTimeout'] });
-
+test('courseStreamHandler calls res.end() after the terminal event', async () => {
   const res = makeMockRes();
   const req = makeMockReq();
 
-  const handlerPromise = courseStreamHandler(req, res);
-  t.mock.timers.tick(5000);
-  await handlerPromise;
+  await courseStreamHandler(req, res, 0);
 
   assert.equal(res.ended, true, 'res.end() should be called after the last event');
 });
