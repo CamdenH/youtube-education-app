@@ -13,8 +13,21 @@ const PORT = process.env.PORT || 3000;
 // Serve static files from project root (index.html)
 app.use(express.static(__dirname));
 
+// Validation constants for /api/course-stream
+const VALID_LEVELS = new Set(['beginner', 'intermediate', 'advanced', 'all levels']);
+
 // API routes
 app.get('/api/course-stream', async (req, res) => {
+  // Validate inputs before opening SSE stream
+  const { subject, skill_level } = req.query;
+
+  if (!subject || subject.length > 200) {
+    return res.status(400).json({ error: 'subject is required and must be 200 characters or fewer' });
+  }
+  if (!VALID_LEVELS.has(skill_level)) {
+    return res.status(400).json({ error: 'skill_level must be one of: beginner, intermediate, advanced, all levels' });
+  }
+
   try {
     await courseStreamHandler(req, res);
   } catch (err) {

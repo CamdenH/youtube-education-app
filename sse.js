@@ -1,42 +1,14 @@
 'use strict';
 
 /**
- * sse.js — SSE helpers and stub course stream handler
+ * sse.js — SSE helpers and course stream handler
  *
  * Exports: sendEvent, sendHeartbeat, startHeartbeat, courseStreamHandler
  */
 
-const STUB_EVENTS = [
-  {
-    name: 'query_generated',
-    data: { step: 1, total: 5, message: 'Generated 7 search queries' },
-  },
-  {
-    name: 'videos_fetched',
-    data: { step: 2, total: 5, message: 'Fetched 48 candidate videos' },
-  },
-  {
-    name: 'scored',
-    data: { step: 3, total: 5, message: 'Scored and ranked 48 videos' },
-  },
-  {
-    name: 'transcripts_fetched',
-    data: { step: 4, total: 5, message: 'Fetched transcripts for top 12 videos' },
-  },
-  {
-    name: 'course_assembled',
-    data: {
-      step: 5,
-      total: 5,
-      message: 'Course ready',
-      course: {
-        title: 'Stub Course',
-        overview: 'This is a stub course for SSE testing.',
-        modules: [],
-      },
-    },
-  },
-];
+const { generateQueries } = require('./queries');
+const { searchVideos, fetchVideoStats } = require('./youtube');
+const { scoreVideos } = require('./scorer');
 
 /**
  * Write a named SSE event to the response.
@@ -77,36 +49,81 @@ function startHeartbeat(res) {
 /**
  * Express route handler for GET /api/course-stream.
  *
- * Sets SSE headers, starts heartbeat, emits all 5 stub pipeline events
- * with 800ms delays between them, then ends the response.
+ * Sets SSE headers, starts heartbeat, runs the real pipeline:
+ *   1. generateQueries — Claude generates search queries
+ *   2. searchVideos + fetchVideoStats — YouTube search and stat fetch
+ *   3. scoreVideos — score and rank candidates
+ *   4-5. transcripts_fetched + course_assembled — stubs (Phase 3)
  *
- * @param {object} req - Express request object
+ * Inputs are validated by server.js before this handler is called.
+ * Error handling (try/catch, SSE error events) lives in server.js.
+ *
+ * @param {object} req - Express request object (req.query.subject, req.query.skill_level)
  * @param {object} res - Express response object
- * @param {number} [_delayMs=800] - Delay between events (overridable in tests)
  */
-async function courseStreamHandler(req, res, _delayMs = 800) {
+async function courseStreamHandler(req, res) {
+  const { subject, skill_level: skillLevel } = req.query;
+
   // Set required SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
-
-  // Flush headers immediately so client receives them before any events
   res.flushHeaders();
 
-  // Start heartbeat to keep proxies alive
   const heartbeatInterval = startHeartbeat(res);
-
-  // Clean up heartbeat on client disconnect to prevent timer leaks
   req.on('close', () => clearInterval(heartbeatInterval));
 
-  // Emit stub pipeline events with simulated delays
-  for (const event of STUB_EVENTS) {
-    await new Promise((r) => setTimeout(r, _delayMs));
-    sendEvent(res, event.name, event.data);
-  }
+  // Step 1: Generate search queries via Claude
+  const queries = await generateQueries(subject, skillLevel);
+  sendEvent(res, 'query_generated', {
+    step: 1,
+    total: 5,
+    message: `Generated ${queries.length} search queries`,
+    queries,
+  });
 
-  // Stop heartbeat and close the response after the terminal event
+  // Step 2: Search YouTube for each query and collect unique video IDs
+  const searchResults = await Promise.all(queries.map(q => searchVideos(q)));
+  const videoIdSet = new Set();
+  for (const result of searchResults) {
+    for (const item of (result.items || [])) {
+      if (item.id?.videoId) videoIdSet.add(item.id.videoId);
+    }
+  }
+  const videoIds = Array.from(videoIdSet);
+
+  // Fetch full stats for all unique videos
+  const videos = await fetchVideoStats(videoIds);
+  sendEvent(res, 'videos_fetched', {
+    step: 2,
+    total: 5,
+    message: `Fetched ${videos.length} candidate videos`,
+  });
+
+  // Step 3: Score and rank videos
+  const scoredVideos = await scoreVideos(videos, skillLevel);
+  sendEvent(res, 'scored', {
+    step: 3,
+    total: 5,
+    message: `Scored and ranked ${scoredVideos.length} videos`,
+    videos: scoredVideos,
+  });
+
+  // Steps 4–5: Stubs (Phase 3 will replace these)
+  sendEvent(res, 'transcripts_fetched', {
+    step: 4,
+    total: 5,
+    message: 'Transcript fetching coming in Phase 3',
+  });
+
+  sendEvent(res, 'course_assembled', {
+    step: 5,
+    total: 5,
+    message: 'Course ready (stub — Phase 3)',
+    course: { title: subject, overview: '', modules: [] },
+  });
+
   clearInterval(heartbeatInterval);
   res.end();
 }

@@ -55,7 +55,7 @@ test('GET /api/course-stream returns SSE headers', async () => {
     const timeoutId = setTimeout(() => controller.abort(), 3000);
     let res;
     try {
-      res = await fetch(`http://localhost:${port}/api/course-stream`, {
+      res = await fetch(`http://localhost:${port}/api/course-stream?subject=test&skill_level=beginner`, {
         signal: controller.signal,
       });
     } finally {
@@ -146,6 +146,79 @@ test('generic error in stream emits SSE error event with INTERNAL code', async (
     assert.ok(text.includes('event: error'), `Expected SSE error event, got: ${text.slice(0, 300)}`);
     assert.ok(text.includes('INTERNAL'), `Expected INTERNAL code, got: ${text.slice(0, 300)}`);
     assert.ok(text.includes('something broke'), `Expected error message, got: ${text.slice(0, 300)}`);
+  } finally {
+    server.close();
+  }
+});
+
+// ── PIPE-01: Input Validation ──────────────────────────────────────────────
+
+test('GET /api/course-stream without subject returns 400', async () => {
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/api/course-stream?skill_level=beginner`);
+    assert.strictEqual(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error, 'Response should have an error field');
+    assert.ok(body.error.includes('subject'), 'Error message should mention subject');
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/course-stream with subject over 200 chars returns 400', async () => {
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const longSubject = 'a'.repeat(201);
+    const res = await fetch(`http://localhost:${port}/api/course-stream?subject=${longSubject}&skill_level=beginner`);
+    assert.strictEqual(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error, 'Response should have an error field');
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/course-stream with invalid skill_level returns 400', async () => {
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/api/course-stream?subject=math&skill_level=expert`);
+    assert.strictEqual(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error, 'Response should have an error field');
+    assert.ok(body.error.includes('skill_level'), 'Error message should mention skill_level');
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /api/course-stream with valid inputs returns SSE stream (not 400)', async () => {
+  // This test only verifies the request gets past validation — it does not wait for real Claude/YouTube calls.
+  // The SSE headers confirm the pipeline started (validation passed).
+  // We abort immediately after confirming headers to avoid real API calls in test.
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    let res;
+    try {
+      res = await fetch(
+        `http://localhost:${port}/api/course-stream?subject=test&skill_level=beginner`,
+        { signal: controller.signal }
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    // Must not be 400 — validation passed
+    assert.notStrictEqual(res.status, 400, 'Valid inputs should not return 400');
+    // Must be SSE stream
+    const contentType = res.headers.get('content-type') || '';
+    assert.ok(contentType.includes('text/event-stream'), `Expected text/event-stream, got: ${contentType}`);
+    controller.abort();
   } finally {
     server.close();
   }
