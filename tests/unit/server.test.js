@@ -55,7 +55,7 @@ test('GET /api/course-stream returns SSE headers', async () => {
     const timeoutId = setTimeout(() => controller.abort(), 3000);
     let res;
     try {
-      res = await fetch(`http://localhost:${port}/api/course-stream`, {
+      res = await fetch(`http://localhost:${port}/api/course-stream?subject=test&skill_level=beginner`, {
         signal: controller.signal,
       });
     } finally {
