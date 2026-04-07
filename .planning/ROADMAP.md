@@ -47,7 +47,13 @@ Plans:
   2. Video scores span a meaningful distribution (not all clustered near the same value) when run against cached Phase 1 YouTube data
   3. Skill level changes the scoring weights: an advanced query deprioritizes recency relative to a beginner query
   4. All unique channels from a candidate set are scored by Claude in exactly one API call, and those scores appear in the final video scores
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Wave 0: install @anthropic-ai/sdk, create test stubs for queries.js and scorer.js
+- [ ] 02-02-PLAN.md — queries.js: generateQueries with angle-diverse Claude prompting
+- [ ] 02-03-PLAN.md — scorer.js: scoreVideos with deterministic + Claude-powered components
+- [ ] 02-04-PLAN.md — Wire pipeline into sse.js + input validation in server.js
 
 ### Phase 3: Transcript + Course Assembly
 **Goal**: Transcripts are fetched for the top 12 scored videos, Claude assembles them into a structured course with modules, per-video blurbs, comprehension questions, and outdated flags, and the pipeline produces a complete course JSON object
@@ -92,7 +98,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete   | 2026-03-19 |
-| 2. Scoring + Query Generation | 0/TBD | Not started | - |
+| 2. Scoring + Query Generation | 0/4 | Not started | - |
 | 3. Transcript + Course Assembly | 0/TBD | Not started | - |
 | 4. Frontend + Persistence + Export | 0/TBD | Not started | - |
 | 5. Lazy Hints | 0/TBD | Not started | - |
