@@ -122,7 +122,10 @@ function mergeClaudeOutput(claudeCourse, videos) {
     ...module,
     videos: (module.videos || []).map(claudeVideo => {
       const scored = videoMap[claudeVideo.videoId];
-      if (!scored) return claudeVideo; // safety: if Claude invented a videoId, pass through as-is
+      if (!scored) {
+        console.warn(`[assembler] Claude returned unknown videoId "${claudeVideo.videoId}" — skipping`);
+        return null; // filtered out below with .filter(Boolean)
+      }
 
       return {
         videoId:         claudeVideo.videoId,
@@ -136,7 +139,7 @@ function mergeClaudeOutput(claudeCourse, videos) {
         outdated:        claudeVideo.outdated,
         questions:       claudeVideo.questions,
       };
-    }),
+    }).filter(Boolean),
   }));
 
   return {
