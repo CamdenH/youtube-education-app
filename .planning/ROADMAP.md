@@ -65,7 +65,12 @@ Plans:
   3. A video with no available transcript falls back to its description; a video with neither is excluded from the course
   4. If fewer than 5 videos survive Claude curation, the API returns a structured message prompting the user to broaden their search instead of an empty course
   5. The course JSON includes overview text, estimated total watch time, and a prerequisite knowledge list
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — assembler.js skeleton + failing test stubs (TDD wave 0)
+- [ ] 03-02-PLAN.md — assembleCourse implementation (parseDurationSeconds, buildAssemblyPrompt, mergeClaudeOutput)
+- [ ] 03-03-PLAN.md — Wire steps 4 and 5 in sse.js (transcript fetch + description fallback + course assembly)
 
 ### Phase 4: Frontend + Persistence + Export
 **Goal**: The full index.html is usable end-to-end: a user can search, watch the pipeline progress in real time, view a rendered course, check off watched videos, revisit saved courses from history, and export a markdown outline
@@ -99,6 +104,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete   | 2026-03-19 |
 | 2. Scoring + Query Generation | 0/4 | Not started | - |
-| 3. Transcript + Course Assembly | 0/TBD | Not started | - |
+| 3. Transcript + Course Assembly | 0/3 | Not started | - |
 | 4. Frontend + Persistence + Export | 0/TBD | Not started | - |
 | 5. Lazy Hints | 0/TBD | Not started | - |
