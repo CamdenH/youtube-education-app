@@ -30,9 +30,11 @@ function resolveModule(rel) {
 }
 
 // Register stub modules in the cache before sse.js is required
-const queriesPath = resolveModule('queries');
-const youtubePath = resolveModule('youtube');
-const scorerPath  = resolveModule('scorer');
+const queriesPath    = resolveModule('queries');
+const youtubePath    = resolveModule('youtube');
+const scorerPath     = resolveModule('scorer');
+const transcriptPath = resolveModule('transcript');
+const assemblerPath  = resolveModule('assembler');
 
 require.cache[queriesPath] = {
   id: queriesPath,
@@ -61,6 +63,66 @@ require.cache[scorerPath] = {
   loaded: true,
   exports: {
     scoreVideos: async (videos) => videos.map(v => ({ ...v, score: 75, scoreBreakdown: {} })),
+  },
+};
+
+// Minimal valid course object returned by the stub assembler
+const STUB_COURSE = {
+  title: 'test',
+  overview: 'Overview.',
+  totalWatchTime: '0h 20m',
+  prerequisites: [],
+  modules: [
+    {
+      title: 'Module 1',
+      description: 'Description.',
+      connectingQuestion: 'How do they connect?',
+      videos: [
+        {
+          videoId: STUB_VIDEO_ID,
+          title: 'Test Video',
+          channelTitle: 'Test Channel',
+          thumbnail: `https://i.ytimg.com/vi/${STUB_VIDEO_ID}/mqdefault.jpg`,
+          url: `https://www.youtube.com/watch?v=${STUB_VIDEO_ID}`,
+          durationSeconds: 1200,
+          score: 75,
+          blurb: 'A great video.',
+          outdated: false,
+          questions: [
+            { type: 'recall',      text: 'Q1?' },
+            { type: 'conceptual',  text: 'Q2?' },
+            { type: 'application', text: 'Q3?' },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+// Mutable cells — sse.js captures the wrapper function by value via destructuring,
+// but the wrapper delegates to _impl which can be swapped per-test.
+const transcriptStub = {
+  _impl: async () => ({ source: 'captions', text: 'Transcript text here.' }),
+};
+const assemblerStub = {
+  _impl: async () => STUB_COURSE,
+};
+
+require.cache[transcriptPath] = {
+  id: transcriptPath,
+  filename: transcriptPath,
+  loaded: true,
+  exports: {
+    fetchTranscript: (...args) => transcriptStub._impl(...args),
+  },
+};
+
+require.cache[assemblerPath] = {
+  id: assemblerPath,
+  filename: assemblerPath,
+  loaded: true,
+  exports: {
+    assembleCourse: (...args) => assemblerStub._impl(...args),
   },
 };
 
@@ -295,4 +357,88 @@ test('courseStreamHandler scored event includes videos array', async () => {
   assert.ok(Array.isArray(payload.videos), 'scored payload should have videos array');
   assert.ok(payload.videos.length > 0, 'scored videos should be non-empty');
   assert.ok('score' in payload.videos[0], 'each video should have a score');
+});
+
+test('courseStreamHandler transcripts_fetched event has correct payload shape', async () => {
+  const res = makeMockRes();
+  const req = makeMockReq();
+
+  await courseStreamHandler(req, res);
+
+  const combined = res.writes.join('');
+  const idx = combined.indexOf('event: transcripts_fetched');
+  assert.ok(idx !== -1, 'transcripts_fetched event should exist');
+
+  const after = combined.slice(idx);
+  const dataLine = after.split('\n').find(l => l.startsWith('data: '));
+  assert.ok(dataLine, 'transcripts_fetched should have a data line');
+
+  const payload = JSON.parse(dataLine.slice('data: '.length));
+  assert.equal(payload.step, 4, 'transcripts_fetched step should be 4');
+  assert.equal(payload.total, 5, 'transcripts_fetched total should be 5');
+  assert.equal(typeof payload.message, 'string', 'transcripts_fetched message should be a string');
+  assert.ok(payload.message.toLowerCase().includes('transcript'), 'message should include "transcript"');
+});
+
+test('courseStreamHandler description fallback — video with description included when fetchTranscript returns null', async () => {
+  // Override transcript stub via mutable cell — sse.js captured the wrapper by value,
+  // the wrapper delegates to _impl so swapping _impl affects all future calls.
+  transcriptStub._impl = async () => null;
+
+  // Override youtube stub to return a video with a long enough description (> 50 chars).
+  // STUB_VIDEO.snippet.description is only 26 chars so we provide a longer one here.
+  const LONG_DESC = 'This is a sufficiently long description that exceeds fifty characters for the fallback test.';
+  const videoWithLongDesc = {
+    ...STUB_VIDEO,
+    snippet: { ...STUB_VIDEO.snippet, description: LONG_DESC },
+  };
+  require.cache[youtubePath].exports.fetchVideoStats = async () => [videoWithLongDesc];
+
+  const res = makeMockRes();
+  const req = makeMockReq();
+
+  await courseStreamHandler(req, res);
+
+  // Restore stubs
+  transcriptStub._impl = async () => ({ source: 'captions', text: 'Transcript text here.' });
+  require.cache[youtubePath].exports.fetchVideoStats = async () => [STUB_VIDEO];
+
+  const combined = res.writes.join('');
+  const idx = combined.indexOf('event: course_assembled');
+  assert.ok(idx !== -1, 'course_assembled event should exist');
+
+  const after = combined.slice(idx);
+  const dataLine = after.split('\n').find(l => l.startsWith('data: '));
+  const payload = JSON.parse(dataLine.slice('data: '.length));
+
+  assert.ok('course' in payload, 'course_assembled payload should have a course field (description fallback path)');
+});
+
+test('courseStreamHandler TOO_FEW_VIDEOS — when assembleCourse returns error shape, course_assembled has error field', async () => {
+  // Override assembler stub via mutable cell
+  assemblerStub._impl = async () => ({
+    step: 5,
+    total: 5,
+    error: 'TOO_FEW_VIDEOS',
+    message: 'Only 3 videos passed quality review. Try a broader or different search term.',
+  });
+
+  const res = makeMockRes();
+  const req = makeMockReq();
+
+  await courseStreamHandler(req, res);
+
+  // Restore stub
+  assemblerStub._impl = async () => STUB_COURSE;
+
+  const combined = res.writes.join('');
+  const idx = combined.indexOf('event: course_assembled');
+  assert.ok(idx !== -1, 'course_assembled event should exist');
+
+  const after = combined.slice(idx);
+  const dataLine = after.split('\n').find(l => l.startsWith('data: '));
+  const payload = JSON.parse(dataLine.slice('data: '.length));
+
+  assert.equal(payload.error, 'TOO_FEW_VIDEOS', 'course_assembled payload should have error field');
+  assert.ok(!('course' in payload), 'course_assembled error shape should not have a course key');
 });

@@ -9,6 +9,8 @@
 const { generateQueries } = require('./queries');
 const { searchVideos, fetchVideoStats } = require('./youtube');
 const { scoreVideos } = require('./scorer');
+const { fetchTranscript } = require('./transcript');
+const { assembleCourse }  = require('./assembler');
 
 /**
  * Write a named SSE event to the response.
@@ -53,7 +55,8 @@ function startHeartbeat(res) {
  *   1. generateQueries — Claude generates search queries
  *   2. searchVideos + fetchVideoStats — YouTube search and stat fetch
  *   3. scoreVideos — score and rank candidates
- *   4-5. transcripts_fetched + course_assembled — stubs (Phase 3)
+ *   4. fetchTranscript × top 12 — parallel transcript fetch with description fallback
+ *   5. assembleCourse — Claude assembles course JSON; emits course_assembled
  *
  * Inputs are validated by server.js before this handler is called.
  * Error handling (try/catch, SSE error events) lives in server.js.
@@ -110,19 +113,61 @@ async function courseStreamHandler(req, res) {
     videos: scoredVideos,
   });
 
-  // Steps 4–5: Stubs (Phase 3 will replace these)
+  // Step 4: Fetch transcripts for top 12 scored videos (TRAN-01, TRAN-02, TRAN-03)
+  // D-05: fetchTranscript returns { source: 'captions', text } or null (captions only)
+  // D-06: Videos with null result AND no description are excluded before Claude call
+  // CRITICAL: description fallback lives in transcriptHandler, NOT in fetchTranscript.
+  // sse.js must apply the fallback manually: check video.snippet.description when null.
+  const top12 = scoredVideos.slice(0, 12);
+  const rawResults = await Promise.all(top12.map(v => fetchTranscript(v.id)));
+
+  const transcripts = {}; // { [videoId]: { source, text } }
+  const videosWithTranscripts = [];
+  let skippedCount = 0;
+
+  for (let i = 0; i < top12.length; i++) {
+    const video = top12[i];
+    let result = rawResults[i];
+
+    if (result === null) {
+      // TRAN-02: fall back to video description when fetchTranscript returns null
+      const desc = video.snippet && video.snippet.description;
+      if (desc && desc.length > 50) {
+        result = { source: 'description', text: desc };
+      }
+    }
+
+    if (result !== null) {
+      transcripts[video.id] = result;
+      videosWithTranscripts.push(video);
+    } else {
+      // TRAN-03: no transcript and no description — exclude from course
+      skippedCount++;
+    }
+  }
+
   sendEvent(res, 'transcripts_fetched', {
     step: 4,
     total: 5,
-    message: 'Transcript fetching coming in Phase 3',
+    message: `Fetched ${videosWithTranscripts.length} transcripts (${skippedCount} skipped)`,
   });
 
-  sendEvent(res, 'course_assembled', {
-    step: 5,
-    total: 5,
-    message: 'Course ready (stub — Phase 3)',
-    course: { title: subject, overview: '', modules: [] },
-  });
+  // Step 5: Assemble course via Claude (CURA-01 through CURA-07, QUES-01–03)
+  // D-01: Single Claude call — all transcripts + full assembly in one prompt
+  // D-09: course_assembled is the terminal SSE event
+  const courseResult = await assembleCourse(videosWithTranscripts, transcripts, subject, skillLevel);
+
+  if (courseResult.error === 'TOO_FEW_VIDEOS') {
+    // D-03: Emit error shape as the terminal course_assembled event (no course key)
+    sendEvent(res, 'course_assembled', courseResult);
+  } else {
+    sendEvent(res, 'course_assembled', {
+      step: 5,
+      total: 5,
+      message: 'Course ready',
+      course: courseResult,
+    });
+  }
 
   clearInterval(heartbeatInterval);
   res.end();
