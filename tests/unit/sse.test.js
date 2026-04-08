@@ -397,11 +397,13 @@ test('courseStreamHandler description fallback — video with description includ
   const res = makeMockRes();
   const req = makeMockReq();
 
-  await courseStreamHandler(req, res);
-
-  // Restore stubs
-  transcriptStub._impl = async () => ({ source: 'captions', text: 'Transcript text here.' });
-  require.cache[youtubePath].exports.fetchVideoStats = async () => [STUB_VIDEO];
+  try {
+    await courseStreamHandler(req, res);
+  } finally {
+    // Restore stubs regardless of whether the handler throws
+    transcriptStub._impl = async () => ({ source: 'captions', text: 'Transcript text here.' });
+    require.cache[youtubePath].exports.fetchVideoStats = async () => [STUB_VIDEO];
+  }
 
   const combined = res.writes.join('');
   const idx = combined.indexOf('event: course_assembled');
