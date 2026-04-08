@@ -191,7 +191,11 @@ async function assembleCourse(videos, transcripts, subject, skillLevel) {
       max_tokens: 8192,   // D-01: large budget for full course JSON (12 videos, 36 questions, module descriptions)
       messages: [{ role: 'user', content: prompt }],
     });
-    return response.content[0].text;
+    const block = response.content && response.content[0];
+    if (!block || !block.text) {
+      throw new Error('Claude returned an empty response — no content blocks');
+    }
+    return block.text;
   });
 
   const claudeCourse = parseClaudeJSON(text);
