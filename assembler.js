@@ -36,9 +36,12 @@ function buildAssemblyPrompt(videos, transcripts, subject, skillLevel) {
   const videoSections = videos.map(v => {
     const transcript = transcripts[v.id] || { source: 'none', text: '' };
     const durationSecs = parseDurationSeconds(v.contentDetails ? v.contentDetails.duration : '');
+    const snippet = v.snippet || {};
+    const title = snippet.title || '(untitled)';
+    const channelTitle = snippet.channelTitle || '(unknown channel)';
     return `--- VIDEO: ${v.id} ---
-Title: ${v.snippet.title}
-Channel: ${v.snippet.channelTitle}
+Title: ${title}
+Channel: ${channelTitle}
 Duration: ${durationSecs} seconds
 Score: ${v.score}/100
 
