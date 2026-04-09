@@ -70,31 +70,231 @@
       margin: 0 0 var(--space-xl) 0;
     }
 
-    /* Connect section */
-    #connect {
-      background: var(--color-surface);
-      padding: var(--space-lg);
-      border-radius: 8px;
+    /* ── Search form ─────────────────────────────────────────────────────── */
+
+    #search-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
       margin-bottom: var(--space-xl);
     }
 
-    #btn-connect {
+    #subject-input {
+      background: var(--color-surface);
+      border: 1px solid var(--color-surface-raised);
+      color: var(--color-text);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: 6px;
+      font-size: var(--font-size-body);
+      font-family: inherit;
+      width: 100%;
+    }
+
+    #subject-input::placeholder {
+      color: var(--color-text-muted);
+    }
+
+    #subject-input:focus {
+      border-color: var(--color-accent);
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    #subject-input:disabled,
+    #skill-level:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #skill-level {
+      background: var(--color-surface);
+      border: 1px solid var(--color-surface-raised);
+      color: var(--color-text);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: 6px;
+      font-size: var(--font-size-body);
+      font-family: inherit;
+      width: 100%;
+      appearance: auto;
+    }
+
+    #skill-level:focus {
+      border-color: var(--color-accent);
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    #btn-generate {
       background: var(--color-accent);
       color: white;
       border: none;
-      padding: var(--space-sm) var(--space-md);
-      border-radius: 4px;
+      padding: 10px 20px;
+      border-radius: 6px;
       font-size: var(--font-size-body);
-      cursor: pointer;
       font-family: inherit;
+      cursor: pointer;
+      width: 100%;
     }
 
-    #btn-connect:disabled {
+    #btn-generate:hover {
+      background: #2563eb;
+    }
+
+    #btn-generate:active {
+      background: #1d4ed8;
+    }
+
+    #btn-generate:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
 
-    /* Progress bar */
+    #btn-generate:focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    /* ── Shared text utilities ───────────────────────────────────────────── */
+
+    .section-label {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      margin: 0 0 var(--space-xs) 0;
+    }
+
+    .section-heading {
+      font-size: var(--font-size-heading);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-heading);
+      margin: 0 0 var(--space-sm) 0;
+    }
+
+    .muted-text {
+      font-size: var(--font-size-body);
+      color: var(--color-text-muted);
+    }
+
+    /* ── Recent searches ─────────────────────────────────────────────────── */
+
+    #recent-searches {
+      margin-bottom: var(--space-lg);
+    }
+
+    #recent-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+    }
+
+    .pill {
+      background: var(--color-surface-raised);
+      color: var(--color-text-muted);
+      border: none;
+      border-radius: 100px;
+      padding: var(--space-xs) 12px;
+      font-size: var(--font-size-label);
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .pill:hover {
+      background: #333;
+      color: var(--color-text);
+    }
+
+    /* ── History panel ───────────────────────────────────────────────────── */
+
+    #history-panel {
+      margin-bottom: var(--space-xl);
+    }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: 6px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+
+    .history-item:hover {
+      background: var(--color-surface);
+    }
+
+    .history-item.active {
+      border-left-color: var(--color-accent);
+      background: var(--color-surface-raised);
+    }
+
+    .history-title {
+      flex: 1;
+      font-size: var(--font-size-body);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-meta {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    .skill-badge {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      background: var(--color-surface);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    /* ── Pipeline loading state ──────────────────────────────────────────── */
+
+    #pipeline-section {
+      margin-bottom: var(--space-xl);
+    }
+
+    .pipeline-step {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-xs) 0;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--color-text-muted);
+    }
+
+    .dot-active {
+      background: var(--color-accent);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    .dot-complete {
+      background: var(--color-success);
+    }
+
+    .dot-error {
+      background: var(--color-destructive);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .step-label {
+      font-size: var(--font-size-body);
+      color: var(--color-text);
+    }
+
+    /* ── Progress bar ────────────────────────────────────────────────────── */
+
     .progress-track {
       background: var(--color-surface-raised);
       height: 4px;
@@ -111,12 +311,345 @@
       transition: width 300ms ease;
     }
 
-    /* Event log section */
-    #event-log {
-      background: var(--color-surface);
-      padding: var(--space-lg);
-      border-radius: 8px;
+    /* ── Error state ─────────────────────────────────────────────────────── */
+
+    .error-text {
+      color: var(--color-destructive);
+      font-size: var(--font-size-body);
     }
+
+    /* ── Course section ──────────────────────────────────────────────────── */
+
+    #course-section {
+      margin-top: var(--space-lg);
+    }
+
+    .course-header {
+      margin-bottom: var(--space-xl);
+    }
+
+    .course-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+    }
+
+    .course-title {
+      font-size: var(--font-size-display);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-display);
+      margin: 0;
+    }
+
+    .btn-export {
+      background: transparent;
+      border: 1px solid var(--color-accent);
+      color: var(--color-accent);
+      border-radius: 6px;
+      padding: var(--space-sm) var(--space-md);
+      font-size: var(--font-size-body);
+      font-family: inherit;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .btn-export:hover {
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-export:focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    .course-overview {
+      font-size: var(--font-size-body);
+      color: var(--color-text);
+      margin: var(--space-md) 0;
+    }
+
+    .prereq-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-sm);
+      align-items: center;
+    }
+
+    .prereq-label {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    .prereq-badge {
+      background: var(--color-surface);
+      color: var(--color-text);
+      padding: 2px 10px;
+      border-radius: 4px;
+      font-size: var(--font-size-label);
+    }
+
+    .watch-time {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+    }
+
+    /* ── Module cards ────────────────────────────────────────────────────── */
+
+    .module-card {
+      background: var(--color-surface);
+      border-radius: 8px;
+      margin-bottom: var(--space-lg);
+      overflow: hidden;
+    }
+
+    .module-card > summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-md);
+      cursor: pointer;
+      list-style: none;
+      font-size: var(--font-size-heading);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-heading);
+    }
+
+    .module-card > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .module-card > summary::marker {
+      display: none;
+      content: '';
+    }
+
+    .module-count {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      font-weight: var(--font-weight-regular);
+    }
+
+    .module-body {
+      padding: 0 var(--space-md) var(--space-md);
+    }
+
+    .module-description {
+      font-size: var(--font-size-body);
+      color: var(--color-text-muted);
+      margin: 0 0 var(--space-md) 0;
+    }
+
+    /* ── Video cards ─────────────────────────────────────────────────────── */
+
+    .video-card {
+      display: flex;
+      gap: var(--space-md);
+      padding: var(--space-md) 0;
+      border-top: 1px solid var(--color-surface-raised);
+    }
+
+    .video-thumb {
+      flex-shrink: 0;
+    }
+
+    .video-thumb img {
+      width: 120px;
+      height: 68px;
+      object-fit: cover;
+      border-radius: 4px;
+      display: block;
+    }
+
+    .video-thumb a:hover img {
+      opacity: 0.85;
+    }
+
+    .video-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .video-title {
+      font-size: var(--font-size-body);
+      font-weight: var(--font-weight-semibold);
+      margin: 0 0 var(--space-xs) 0;
+    }
+
+    .video-meta {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      margin: 0 0 var(--space-xs) 0;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: var(--space-sm);
+      align-items: center;
+      margin-bottom: var(--space-xs);
+      flex-wrap: wrap;
+    }
+
+    .score-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 40px;
+      height: 28px;
+      border-radius: 100px;
+      font-size: var(--font-size-label);
+      font-weight: var(--font-weight-semibold);
+      color: white;
+      padding: 0 var(--space-sm);
+    }
+
+    .outdated-badge {
+      background: #f59e0b;
+      color: #0f0f0f;
+      border-radius: 4px;
+      padding: 2px var(--space-sm);
+      font-size: var(--font-size-label);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    .video-blurb {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      margin: var(--space-xs) 0;
+    }
+
+    /* ── Questions accordion ─────────────────────────────────────────────── */
+
+    .questions-accordion {
+      margin-top: var(--space-sm);
+    }
+
+    .questions-accordion > summary {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      cursor: pointer;
+      padding: var(--space-xs) 0;
+    }
+
+    .question-item {
+      margin-bottom: var(--space-md);
+    }
+
+    .question-label {
+      font-size: var(--font-size-label);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text);
+      margin-bottom: var(--space-xs);
+    }
+
+    .question-textarea {
+      background: var(--color-surface);
+      border: 1px solid var(--color-surface-raised);
+      color: var(--color-text);
+      border-radius: 4px;
+      padding: var(--space-sm);
+      font-size: var(--font-size-body);
+      font-family: inherit;
+      min-height: 72px;
+      resize: vertical;
+      width: 100%;
+    }
+
+    .question-textarea::placeholder {
+      color: var(--color-text-muted);
+    }
+
+    .question-textarea:focus {
+      border-color: var(--color-accent);
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    .hint-text {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      margin-top: var(--space-xs);
+    }
+
+    .hint-label {
+      font-weight: var(--font-weight-semibold);
+    }
+
+    .btn-hints {
+      background: transparent;
+      border: 1px solid var(--color-accent);
+      color: var(--color-accent);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: var(--font-size-label);
+      font-family: inherit;
+      cursor: pointer;
+      margin-top: var(--space-sm);
+    }
+
+    .btn-hints:hover {
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-hints:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-hints:focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    /* ── Watched checkbox row ────────────────────────────────────────────── */
+
+    .watched-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-top: var(--space-sm);
+      padding: var(--space-xs) 0;
+      min-height: 44px;
+    }
+
+    .watched-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--color-success);
+      cursor: pointer;
+    }
+
+    .watched-row label {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      cursor: pointer;
+    }
+
+    /* ── Module connecting question ──────────────────────────────────────── */
+
+    .connecting-question {
+      padding: var(--space-md) 0 0;
+      border-top: 1px solid var(--color-surface-raised);
+      margin-top: var(--space-md);
+    }
+
+    .connecting-question-label {
+      font-size: var(--font-size-label);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text-muted);
+      margin: 0 0 var(--space-xs) 0;
+    }
+
+    .connecting-question-text {
+      font-size: var(--font-size-body);
+      color: var(--color-text);
+      margin: 0;
+    }
+
+    /* ── Empty state ─────────────────────────────────────────────────────── */
 
     .empty-state-heading {
       font-size: var(--font-size-heading);
@@ -132,140 +665,88 @@
       margin: 0;
     }
 
-    /* Event rows */
-    .event-item {
-      display: flex;
-      align-items: center;
-      gap: var(--space-sm);
-      padding: var(--space-xs) 0;
+    /* ── Responsive ──────────────────────────────────────────────────────── */
+
+    @media (max-width: 480px) {
+      .video-card { flex-direction: column; }
+      .course-title-row { flex-direction: column; }
+      .btn-export { width: 100%; text-align: center; }
+      #btn-generate { width: 100%; }
     }
 
-    .event-item + .event-item {
-      border-top: 1px solid var(--color-surface-raised);
-    }
-
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .event-name {
-      font-size: var(--font-size-label);
-      color: var(--color-text-muted);
-      font-family: monospace;
-      flex-shrink: 0;
-    }
-
-    .event-message {
-      font-size: var(--font-size-body);
-      color: var(--color-text);
-      flex: 1;
-    }
-
-    .event-time {
-      font-size: var(--font-size-label);
-      color: var(--color-text-muted);
-      margin-left: auto;
-      flex-shrink: 0;
+    @media (min-width: 481px) {
+      #search-form { flex-direction: row; flex-wrap: wrap; }
+      #subject-input { flex: 1; }
+      #skill-level { width: auto; }
+      #btn-generate { width: auto; }
     }
   </style>
 </head>
 <body>
   <main>
     <h1>YouTube Learning Curator</h1>
-    <p class="subtitle">SSE connection test &mdash; Phase 1 stub</p>
+    <p class="subtitle">Curated YouTube courses powered by AI</p>
 
-    <section id="connect">
-      <button id="btn-connect">Connect to SSE</button>
+    <!-- 1. Search form (always visible) -->
+    <section id="search-form">
+      <input
+        id="subject-input"
+        type="text"
+        placeholder="Enter a subject to learn..."
+        maxlength="200"
+        autocomplete="off"
+      >
+      <select id="skill-level">
+        <option value="all levels" selected>All Levels</option>
+        <option value="beginner">Beginner</option>
+        <option value="intermediate">Intermediate</option>
+        <option value="advanced">Advanced</option>
+      </select>
+      <button id="btn-generate" type="button">Generate course</button>
+    </section>
+
+    <!-- 2. Recent searches (visible when non-empty) -->
+    <section id="recent-searches" hidden>
+      <p class="section-label">Recent searches</p>
+      <div id="recent-pills"></div>
+    </section>
+
+    <!-- 3. History panel (visible when non-empty) -->
+    <section id="history-panel" hidden>
+      <h2 class="section-heading">Recent courses</h2>
+      <div id="history-list"></div>
+      <p id="history-empty" class="muted-text">No saved courses yet.</p>
+    </section>
+
+    <!-- 4. Pipeline loading state (visible during generation only) -->
+    <section id="pipeline-section" hidden>
+      <div id="pipeline-steps"></div>
       <div class="progress-track">
         <div id="progress-fill"></div>
       </div>
     </section>
 
-    <section id="event-log">
-      <div id="empty-state">
-        <h2 class="empty-state-heading">No events yet</h2>
-        <p class="empty-state-body">Click Connect to SSE to open the stream.</p>
-      </div>
+    <!-- 5. Error state (visible on pipeline error only) -->
+    <section id="error-section" hidden>
+      <p id="error-message" class="error-text"></p>
+    </section>
+
+    <!-- 6. Course view (visible after generation completes) -->
+    <section id="course-section" hidden>
+      <div id="course-header"></div>
+      <div id="course-modules"></div>
+    </section>
+
+    <!-- 7. Empty state (visible on initial load, no course yet) -->
+    <section id="empty-state">
+      <h2 class="empty-state-heading">What do you want to learn?</h2>
+      <p class="empty-state-body">Enter a subject above and select your skill level to generate a curated YouTube course.</p>
     </section>
   </main>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('btn-connect');
-      const progressFill = document.getElementById('progress-fill');
-      const eventLog = document.getElementById('event-log');
-      const emptyState = document.getElementById('empty-state');
-      let eventSource = null;
-      let startTime = null;
-
-      btn.addEventListener('click', () => {
-        // Reset state
-        eventLog.querySelectorAll('.event-item').forEach(el => el.remove());
-        emptyState.style.display = 'block';
-        progressFill.style.width = '0%';
-        progressFill.style.background = 'var(--color-accent)';
-        btn.textContent = 'Connecting...';
-        btn.disabled = true;
-        startTime = Date.now();
-
-        eventSource = new EventSource('/api/course-stream');
-
-        eventSource.onopen = () => {
-          btn.textContent = 'Streaming...';
-          emptyState.style.display = 'none';
-        };
-
-        const EVENTS = ['query_generated', 'videos_fetched', 'scored', 'transcripts_fetched', 'course_assembled'];
-        EVENTS.forEach(eventName => {
-          eventSource.addEventListener(eventName, (e) => {
-            const data = JSON.parse(e.data);
-            addEventRow(eventName, data, eventName === 'course_assembled' ? '--color-success' : '--color-accent');
-            progressFill.style.width = `${(data.step / data.total) * 100}%`;
-
-            if (eventName === 'course_assembled') {
-              progressFill.style.background = 'var(--color-success)';
-              btn.textContent = 'Connect to SSE';
-              btn.disabled = false;
-              eventSource.close();
-            }
-          });
-        });
-
-        eventSource.addEventListener('error', (e) => {
-          let data;
-          try { data = JSON.parse(e.data); } catch { data = { message: 'Something went wrong. Check the server logs.' }; }
-          addEventRow('error', data, '--color-destructive');
-          progressFill.style.background = 'var(--color-destructive)';
-          btn.textContent = 'Connect to SSE';
-          btn.disabled = false;
-          eventSource.close();
-        });
-
-        eventSource.onerror = () => {
-          // Native EventSource error (connection lost, not a named 'error' event)
-          btn.textContent = 'Connect to SSE';
-          btn.disabled = false;
-          if (eventSource) eventSource.close();
-        };
-      });
-
-      function addEventRow(eventName, data, dotColor) {
-        emptyState.style.display = 'none';
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        const row = document.createElement('div');
-        row.className = 'event-item';
-        row.innerHTML = `
-          <span class="dot" style="background: var(${dotColor})"></span>
-          <span class="event-name">${eventName}</span>
-          <span class="event-message">${data.message || ''}</span>
-          <span class="event-time">${elapsed}s</span>
-        `;
-        eventLog.appendChild(row);
-      }
-    });
+    'use strict';
+    // JS wiring added in Plan 02 and Plan 03
   </script>
 </body>
 </html>
