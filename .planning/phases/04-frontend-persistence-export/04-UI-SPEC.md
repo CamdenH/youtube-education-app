@@ -1,7 +1,8 @@
 ---
 phase: 4
 slug: frontend-persistence-export
-status: draft
+status: approved
+reviewed_at: 2026-04-09
 shadcn_initialized: false
 preset: none
 created: 2026-04-09
@@ -66,7 +67,7 @@ Usage rules:
 - Display (28px/600): Page title "YouTube Learning Curator" and generated course title only
 - Heading (20px/600): Module card titles, section headings (History, Recent Searches)
 - Body (16px/400): All prose — course overview, video rationale blurbs, question text, textarea input, pipeline step messages
-- Label (14px/400): Score badges, channel names, duration, timestamps, monospace event names in pipeline log, prerequisite badges, "why this video" attribution label
+- Label (14px/400): Score badges, outdated badges, channel names, duration, timestamps, monospace event names in pipeline log, prerequisite badges, "why this video" attribution label
 
 Monospace exception: Pipeline step event names use `font-family: monospace` at 14px/400 — already established in existing stub.
 
@@ -90,8 +91,9 @@ Accent (`#3b82f6`) reserved for:
 3. Hyperlinks (video titles linking to YouTube, thumbnail overlay)
 4. Focus ring on all interactive elements (2px solid, 2px offset)
 5. Active/selected history item left border indicator (3px)
+6. Score badge background for the 60-79 tier (mid-quality videos)
 
-Accent is NOT used for: decorative borders, backgrounds, text on non-interactive elements, score badges, or module card headers.
+Accent is NOT used for: decorative borders, backgrounds, text on non-interactive elements, or module card headers.
 
 Outdated warning color: `#f59e0b` (amber) — used exclusively for the "May be outdated" flag badge background. This is the only amber usage.
 
@@ -161,11 +163,11 @@ Score badge:
   - 60-79: `#3b82f6` (accent blue)
   - 40-59: `#f59e0b` (amber)
   - 0-39: `#a0a0a0` (muted gray)
-- Font: 13px/600 (not in the 4-size scale — this is the one badge exception)
+- Font: 14px/600 (label size)
 
 Outdated warning badge (CURA-06):
 - Text: "May be outdated"
-- Background: `#f59e0b`, text: `#0f0f0f` (dark on amber for contrast), border-radius 4px, padding 2px 8px, font 12px/600
+- Background: `#f59e0b`, text: `#0f0f0f` (dark on amber for contrast), border-radius 4px, padding 2px 8px, font 14px/600
 - Displayed inline with score badge row
 
 Watched checkbox (PERS-02):
@@ -182,6 +184,18 @@ Watched checkbox (PERS-02):
 - Each question has a `<textarea>` for user answers: background `#1a1a1a`, border `1px solid #242424`, border-radius 4px, min-height 72px, resize: vertical, full width
 - Textarea placeholder: "Write your answer here..."
 - User answers are NOT persisted (out of scope per REQUIREMENTS.md)
+
+### Reveal Thinking Points Button (FRNT-08)
+
+FRNT-08 is a Phase 4 requirement. The hint generation API (HINT-01 through HINT-03) ships in Phase 5, but the button UI is wired in Phase 4.
+
+- Placement: below the 3 comprehension questions, inside the questions accordion, above the watched checkbox
+- Label (idle): "Reveal thinking points"
+- Label (loading): "Getting hints..." — button disabled, cursor not-allowed, opacity 0.6
+- Label (loaded): "Thinking points" — button switches to a non-interactive label style (no longer a button)
+- Hint reveal format: each hint appears inline below its corresponding question as muted text (14px/400, `#a0a0a0`), prefixed with "Hint:" in label weight (14px/600)
+- Button style: same secondary style as Export — transparent background, border `1px solid #3b82f6`, text `#3b82f6`, border-radius 6px, padding 6px 14px
+- Phase 4 scope: button is rendered and the loading state is wired; actual API call implementation (POST /api/hint) is Phase 5. In Phase 4 the button click handler is a no-op stub that can be replaced in Phase 5.
 
 ### History Panel (PERS-01)
 
@@ -214,6 +228,8 @@ Watched checkbox (PERS-02):
 
 **Max-width:** 640px, centered, horizontal padding 24px on mobile
 
+**Primary visual anchor:** The subject input + Generate course button are the focal center of the search screen. All other elements (recent searches, history panel) are secondary to this pair.
+
 **Page structure (top to bottom):**
 1. Page title + subtitle
 2. Search form (subject input + skill level selector + generate button)
@@ -236,7 +252,7 @@ Watched checkbox (PERS-02):
 
 **Video card layout (within module):**
 - Horizontal layout: thumbnail left, content right
-- Content column: title (body/600), channel + duration row (label/muted), badge row (score + outdated), "Why this video" blurb (label/muted), watched checkbox
+- Content column: title (body/600), channel + duration row (label/muted), badge row (score + outdated), "Why this video" blurb (label/muted), comprehension questions accordion, reveal thinking points button, watched checkbox
 - On 375px: thumbnail stays 120×68px, content column wraps below if needed — min-width 0 on content column to prevent overflow
 
 ---
@@ -264,6 +280,9 @@ Watched checkbox (PERS-02):
 | Recent searches label | "Recent searches" |
 | Outdated badge | "May be outdated" |
 | Prerequisite row label | "Prerequisites:" |
+| Reveal thinking points button (idle) | "Reveal thinking points" |
+| Reveal thinking points button (loading) | "Getting hints..." |
+| Hint prefix label | "Hint:" |
 
 Destructive actions in this phase: none. The only data mutation is localStorage (watched state, history, recent searches). No confirmation dialogs required.
 
@@ -323,7 +342,7 @@ Rules:
 - `<details>`/`<summary>` used for all accordions — native keyboard expand/collapse, no ARIA required
 - Checkboxes use visible `<label>` association via `for`/`id`
 - Color is never the sole differentiator — score tiers use color + numeric value; pipeline steps use color + text label
-- Amber (`#f59e0b`) on dark background (`#0f0f0f`) meets 4.5:1 minimum contrast for badge text at 12px/600
+- Amber (`#f59e0b`) on dark background (`#0f0f0f`) meets 4.5:1 minimum contrast for badge text at 14px/600
 
 ---
 
