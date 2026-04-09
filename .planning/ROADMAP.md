@@ -68,9 +68,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — assembler.js skeleton + failing test stubs (TDD wave 0)
-- [ ] 03-02-PLAN.md — assembleCourse implementation (parseDurationSeconds, buildAssemblyPrompt, mergeClaudeOutput)
-- [ ] 03-03-PLAN.md — Wire steps 4 and 5 in sse.js (transcript fetch + description fallback + course assembly)
+- [x] 03-01-PLAN.md — assembler.js skeleton + failing test stubs (TDD wave 0)
+- [x] 03-02-PLAN.md — assembleCourse implementation (parseDurationSeconds, buildAssemblyPrompt, mergeClaudeOutput)
+- [x] 03-03-PLAN.md — Wire steps 4 and 5 in sse.js (transcript fetch + description fallback + course assembly)
 
 ### Phase 4: Frontend + Persistence + Export
 **Goal**: The full index.html is usable end-to-end: a user can search, watch the pipeline progress in real time, view a rendered course, check off watched videos, revisit saved courses from history, and export a markdown outline
@@ -83,7 +83,13 @@ Plans:
   4. Checking a video as watched persists across page reloads; last 10 courses appear in history and clicking one restores the exact saved course
   5. Clicking "Export course" downloads a markdown file with modules, titles, YouTube links, and questions — containing no user answers or hint text
   6. The UI is usable on a 375px viewport and renders correctly in dark mode by default
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Unit test stubs (Wave 0) + HTML skeleton and all CSS
+- [ ] 04-02-PLAN.md — Form submission, SSE pipeline, course rendering, recent searches, export
+- [ ] 04-03-PLAN.md — localStorage persistence: history, watched state, eviction
+- [ ] 04-04-PLAN.md — Full test suite run + visual/functional verification checkpoint
 
 ### Phase 5: Lazy Hints
 **Goal**: A user who wants help with a video's questions can reveal thinking points, triggering a single Claude call that returns all 3 hints at once, without disturbing any other video's state
@@ -105,5 +111,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation | 4/4 | Complete   | 2026-03-19 |
 | 2. Scoring + Query Generation | 0/4 | Not started | - |
 | 3. Transcript + Course Assembly | 0/3 | Not started | - |
-| 4. Frontend + Persistence + Export | 0/TBD | Not started | - |
+| 4. Frontend + Persistence + Export | 0/4 | Not started | - |
 | 5. Lazy Hints | 0/TBD | Not started | - |
