@@ -746,7 +746,601 @@
 
   <script>
     'use strict';
-    // JS wiring added in Plan 02 and Plan 03
+
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // ─── Pure Logic Functions ──────────────────────────────────────────────
+
+      function slugify(title) {
+        return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      }
+
+      function formatDuration(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        return `${m}:${String(s).padStart(2, '0')}`;
+      }
+
+      function scoreBadgeColor(score) {
+        if (score >= 80) return '#22c55e';
+        if (score >= 60) return '#3b82f6';
+        if (score >= 40) return '#f59e0b';
+        return '#a0a0a0';
+      }
+
+      function relativeTime(isoString) {
+        const diff = Date.now() - new Date(isoString).getTime();
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+        if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+        if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+        return 'just now';
+      }
+
+      function updateRecentSearches(searches, newSubject) {
+        const deduped = searches.filter((s) => s !== newSubject);
+        deduped.unshift(newSubject);
+        return deduped.slice(0, 5);
+      }
+
+      function buildMarkdown(course, subject, skillLevel) {
+        const lines = [];
+        lines.push(`# ${course.title}`);
+        lines.push('');
+        lines.push(`**Subject:** ${subject} | **Level:** ${skillLevel} | **Watch time:** ${course.totalWatchTime}`);
+        lines.push('');
+        lines.push('## Prerequisites');
+        for (const prereq of (course.prerequisites || [])) {
+          lines.push(`- ${prereq}`);
+        }
+        lines.push('');
+        lines.push('## Overview');
+        lines.push(course.overview);
+        lines.push('');
+        lines.push('---');
+
+        for (let mi = 0; mi < course.modules.length; mi++) {
+          const mod = course.modules[mi];
+          lines.push('');
+          lines.push(`## Module ${mi + 1}: ${mod.title}`);
+          lines.push('');
+          lines.push(mod.description);
+
+          for (const video of mod.videos) {
+            lines.push('');
+            lines.push(`### ${video.title}`);
+            lines.push(`- **Channel:** ${video.channelTitle}`);
+            lines.push(`- **Duration:** ${formatDuration(video.durationSeconds)}`);
+            lines.push(`- **Link:** ${video.url}`);
+            lines.push(`- **Why:** ${video.blurb}`);
+            if (video.outdated) {
+              lines.push('');
+              lines.push('> Note: This video may contain outdated information.');
+            }
+            lines.push('');
+            lines.push('**Questions:**');
+            video.questions.forEach((q, i) => {
+              const label = q.type.charAt(0).toUpperCase() + q.type.slice(1);
+              lines.push(`${i + 1}. (${label}) ${q.text}`);
+            });
+          }
+
+          lines.push('');
+          lines.push(`**Module question:** ${mod.connectingQuestion}`);
+          lines.push('');
+          lines.push('---');
+        }
+
+        return lines.join('\n');
+      }
+
+      // ─── Section State Management ──────────────────────────────────────────
+
+      const CONTENT_SECTIONS = ['pipeline-section', 'error-section', 'course-section', 'empty-state'];
+
+      function showContentSection(id) {
+        for (const sectionId of CONTENT_SECTIONS) {
+          document.getElementById(sectionId).hidden = (sectionId !== id);
+        }
+      }
+
+      // ─── Pipeline Step Configuration ───────────────────────────────────────
+
+      const STEP_LABELS = {
+        query_generated:    'Generating search queries',
+        videos_fetched:     'Searching YouTube',
+        scored:             'Scoring videos',
+        transcripts_fetched:'Fetching transcripts',
+        course_assembled:   'Building your course',
+      };
+      const STEP_ORDER = ['query_generated', 'videos_fetched', 'scored', 'transcripts_fetched', 'course_assembled'];
+
+      function initPipelineSteps() {
+        const container = document.getElementById('pipeline-steps');
+        container.innerHTML = '';
+        for (const eventName of STEP_ORDER) {
+          const step = document.createElement('div');
+          step.className = 'pipeline-step';
+          step.dataset.step = eventName;
+
+          const dot = document.createElement('span');
+          dot.className = 'dot';
+
+          const label = document.createElement('span');
+          label.className = 'step-label';
+          label.textContent = STEP_LABELS[eventName];
+
+          step.appendChild(dot);
+          step.appendChild(label);
+          container.appendChild(step);
+        }
+
+        // Mark first step as active immediately
+        const firstStep = container.querySelector('[data-step="query_generated"]');
+        if (firstStep) firstStep.querySelector('.dot').classList.add('dot-active');
+
+        // Reset progress bar
+        document.getElementById('progress-fill').style.width = '0%';
+      }
+
+      function updatePipelineStep(eventName) {
+        const stepIndex = STEP_ORDER.indexOf(eventName);
+        if (stepIndex === -1) return;
+
+        const container = document.getElementById('pipeline-steps');
+
+        // Mark current step as complete
+        const currentStep = container.querySelector(`[data-step="${eventName}"]`);
+        if (currentStep) {
+          const dot = currentStep.querySelector('.dot');
+          dot.classList.remove('dot-active');
+          dot.classList.add('dot-complete');
+        }
+
+        // Mark next step as active (if any)
+        if (stepIndex + 1 < STEP_ORDER.length) {
+          const nextEventName = STEP_ORDER[stepIndex + 1];
+          const nextStep = container.querySelector(`[data-step="${nextEventName}"]`);
+          if (nextStep) {
+            nextStep.querySelector('.dot').classList.add('dot-active');
+          }
+        }
+
+        // Update progress bar
+        const progressFill = document.getElementById('progress-fill');
+        progressFill.style.width = ((stepIndex + 1) / 5 * 100) + '%';
+      }
+
+      // ─── Form Helpers ──────────────────────────────────────────────────────
+
+      function disableForm() {
+        const btn = document.getElementById('btn-generate');
+        btn.textContent = 'Generating...';
+        btn.disabled = true;
+        document.getElementById('subject-input').disabled = true;
+        document.getElementById('skill-level').disabled = true;
+      }
+
+      function enableForm() {
+        const btn = document.getElementById('btn-generate');
+        btn.textContent = 'Generate course';
+        btn.disabled = false;
+        document.getElementById('subject-input').disabled = false;
+        document.getElementById('skill-level').disabled = false;
+      }
+
+      // ─── Error Display ─────────────────────────────────────────────────────
+
+      function showError(message) {
+        showContentSection('error-section');
+        document.getElementById('error-message').textContent = message;
+      }
+
+      function resolveErrorMessage(data) {
+        if (data && data.code === 'QUOTA_EXCEEDED') {
+          return 'YouTube API quota exceeded. Try again after midnight Pacific time.';
+        }
+        return 'Something went wrong generating your course. Check the server logs.';
+      }
+
+      // ─── Recent Searches ───────────────────────────────────────────────────
+
+      function loadRecentSearches() {
+        try {
+          return JSON.parse(localStorage.getItem('ylc_searches') || '[]');
+        } catch (_) {
+          return [];
+        }
+      }
+
+      function renderRecentSearches(searches) {
+        const section = document.getElementById('recent-searches');
+        const pillsContainer = document.getElementById('recent-pills');
+        pillsContainer.innerHTML = '';
+
+        if (searches.length === 0) {
+          section.hidden = true;
+          return;
+        }
+
+        section.hidden = false;
+        for (const term of searches) {
+          const pill = document.createElement('button');
+          pill.className = 'pill';
+          pill.textContent = term;
+          pill.addEventListener('click', () => {
+            document.getElementById('subject-input').value = term;
+          });
+          pillsContainer.appendChild(pill);
+        }
+      }
+
+      // ─── Stub Functions (replaced in Plan 03) ──────────────────────────────
+
+      function saveCourseToHistory(course, subject, skillLevel) {
+        // Plan 03: wire localStorage history persistence
+      }
+
+      // ─── Export ────────────────────────────────────────────────────────────
+
+      function exportCourse(course, subject, skillLevel) {
+        const md = buildMarkdown(course, subject, skillLevel);
+        const blob = new Blob([md], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = slugify(course.title) + '.md';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      // ─── Course Rendering ──────────────────────────────────────────────────
+
+      function capitalize(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+      }
+
+      function renderCourse(course, subject, skillLevel) {
+        showContentSection('course-section');
+
+        // Build course header
+        const courseHeader = document.getElementById('course-header');
+        courseHeader.innerHTML = '';
+
+        // Title row with export button
+        const titleRow = document.createElement('div');
+        titleRow.className = 'course-title-row';
+
+        const titleEl = document.createElement('h2');
+        titleEl.className = 'course-title';
+        titleEl.textContent = course.title;
+
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'btn-export';
+        exportBtn.id = 'btn-export';
+        exportBtn.textContent = 'Export course';
+        exportBtn.addEventListener('click', () => exportCourse(course, subject, skillLevel));
+
+        titleRow.appendChild(titleEl);
+        titleRow.appendChild(exportBtn);
+        courseHeader.appendChild(titleRow);
+
+        // Overview
+        const overview = document.createElement('p');
+        overview.className = 'course-overview';
+        overview.textContent = course.overview;
+        courseHeader.appendChild(overview);
+
+        // Prerequisites
+        if (course.prerequisites && course.prerequisites.length > 0) {
+          const prereqRow = document.createElement('div');
+          prereqRow.className = 'prereq-row';
+
+          const prereqLabel = document.createElement('span');
+          prereqLabel.className = 'prereq-label';
+          prereqLabel.textContent = 'Prerequisites:';
+          prereqRow.appendChild(prereqLabel);
+
+          for (const prereq of course.prerequisites) {
+            const badge = document.createElement('span');
+            badge.className = 'prereq-badge';
+            badge.textContent = prereq;
+            prereqRow.appendChild(badge);
+          }
+
+          courseHeader.appendChild(prereqRow);
+        }
+
+        // Watch time
+        const watchTime = document.createElement('p');
+        watchTime.className = 'watch-time';
+        watchTime.textContent = 'Estimated watch time: ' + course.totalWatchTime;
+        courseHeader.appendChild(watchTime);
+
+        // Build modules
+        const modulesContainer = document.getElementById('course-modules');
+        modulesContainer.innerHTML = '';
+
+        course.modules.forEach((mod, mi) => {
+          const details = document.createElement('details');
+          details.className = 'module-card';
+          if (mi === 0) details.setAttribute('open', '');
+
+          // Summary
+          const summary = document.createElement('summary');
+
+          const modTitle = document.createElement('span');
+          modTitle.className = 'module-title';
+          modTitle.textContent = 'Module ' + (mi + 1) + ': ' + mod.title;
+
+          const modCount = document.createElement('span');
+          modCount.className = 'module-count';
+          modCount.textContent = mod.videos.length + ' videos';
+
+          summary.appendChild(modTitle);
+          summary.appendChild(modCount);
+          details.appendChild(summary);
+
+          // Module body
+          const moduleBody = document.createElement('div');
+          moduleBody.className = 'module-body';
+
+          // Module description
+          const modDesc = document.createElement('p');
+          modDesc.className = 'module-description';
+          modDesc.textContent = mod.description;
+          moduleBody.appendChild(modDesc);
+
+          // Video cards
+          mod.videos.forEach((video) => {
+            const videoCard = document.createElement('div');
+            videoCard.className = 'video-card';
+
+            // Thumbnail
+            const thumbDiv = document.createElement('div');
+            thumbDiv.className = 'video-thumb';
+
+            const thumbLink = document.createElement('a');
+            thumbLink.href = video.url;
+            thumbLink.target = '_blank';
+            thumbLink.rel = 'noopener';
+
+            const img = document.createElement('img');
+            img.src = video.thumbnail;
+            img.alt = video.title + ' — YouTube thumbnail';
+            img.width = 120;
+            img.height = 68;
+
+            thumbLink.appendChild(img);
+            thumbDiv.appendChild(thumbLink);
+            videoCard.appendChild(thumbDiv);
+
+            // Content column
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'video-content';
+
+            // Title
+            const videoTitle = document.createElement('p');
+            videoTitle.className = 'video-title';
+            videoTitle.textContent = video.title;
+            contentDiv.appendChild(videoTitle);
+
+            // Meta (channel · duration)
+            const videoMeta = document.createElement('p');
+            videoMeta.className = 'video-meta';
+            videoMeta.textContent = video.channelTitle + ' · ' + formatDuration(video.durationSeconds);
+            contentDiv.appendChild(videoMeta);
+
+            // Badge row (score + outdated)
+            const badgeRow = document.createElement('div');
+            badgeRow.className = 'badge-row';
+
+            const scoreBadge = document.createElement('span');
+            scoreBadge.className = 'score-badge';
+            scoreBadge.textContent = video.score;
+            scoreBadge.style.background = scoreBadgeColor(video.score);
+            badgeRow.appendChild(scoreBadge);
+
+            if (video.outdated) {
+              const outdatedBadge = document.createElement('span');
+              outdatedBadge.className = 'outdated-badge';
+              outdatedBadge.textContent = 'May be outdated';
+              badgeRow.appendChild(outdatedBadge);
+            }
+
+            contentDiv.appendChild(badgeRow);
+
+            // Blurb
+            const blurb = document.createElement('p');
+            blurb.className = 'video-blurb';
+            blurb.textContent = video.blurb;
+            contentDiv.appendChild(blurb);
+
+            // Questions accordion
+            const questionsDetails = document.createElement('details');
+            questionsDetails.className = 'questions-accordion';
+
+            const questionsSummary = document.createElement('summary');
+            questionsSummary.textContent = 'Comprehension questions (' + video.questions.length + ')';
+            questionsDetails.appendChild(questionsSummary);
+
+            video.questions.forEach((q, i) => {
+              const questionItem = document.createElement('div');
+              questionItem.className = 'question-item';
+
+              const questionLabel = document.createElement('p');
+              questionLabel.className = 'question-label';
+              questionLabel.textContent = (i + 1) + '. (' + capitalize(q.type) + ') ' + q.text;
+              questionItem.appendChild(questionLabel);
+
+              const textarea = document.createElement('textarea');
+              textarea.className = 'question-textarea';
+              textarea.placeholder = 'Write your answer here...';
+              questionItem.appendChild(textarea);
+
+              const hintText = document.createElement('p');
+              hintText.className = 'hint-text';
+              hintText.dataset.videoId = video.videoId;
+              hintText.dataset.questionIndex = i;
+              hintText.hidden = true;
+              questionItem.appendChild(hintText);
+
+              questionsDetails.appendChild(questionItem);
+            });
+
+            // Reveal thinking points button (no-op stub — Phase 5 wires the API call)
+            const hintsBtn = document.createElement('button');
+            hintsBtn.className = 'btn-hints';
+            hintsBtn.dataset.videoId = video.videoId;
+            hintsBtn.textContent = 'Reveal thinking points';
+            hintsBtn.addEventListener('click', () => { /* Phase 5: POST /api/hint */ });
+            questionsDetails.appendChild(hintsBtn);
+
+            contentDiv.appendChild(questionsDetails);
+
+            // Watched checkbox row (stub — Plan 03 wires localStorage)
+            const watchedRow = document.createElement('div');
+            watchedRow.className = 'watched-row';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = 'watched-' + video.videoId;
+            checkbox.addEventListener('change', () => { /* Plan 03: persist to ylc_watched */ });
+
+            const checkboxLabel = document.createElement('label');
+            checkboxLabel.htmlFor = 'watched-' + video.videoId;
+            checkboxLabel.textContent = 'Mark as watched';
+
+            watchedRow.appendChild(checkbox);
+            watchedRow.appendChild(checkboxLabel);
+            contentDiv.appendChild(watchedRow);
+
+            videoCard.appendChild(contentDiv);
+            moduleBody.appendChild(videoCard);
+          });
+
+          // Connecting question at bottom of module body
+          const connectingQuestion = document.createElement('div');
+          connectingQuestion.className = 'connecting-question';
+
+          const connectingLabel = document.createElement('p');
+          connectingLabel.className = 'connecting-question-label';
+          connectingLabel.textContent = 'Module question';
+          connectingQuestion.appendChild(connectingLabel);
+
+          const connectingText = document.createElement('p');
+          connectingText.className = 'connecting-question-text';
+          connectingText.textContent = mod.connectingQuestion;
+          connectingQuestion.appendChild(connectingText);
+
+          moduleBody.appendChild(connectingQuestion);
+          details.appendChild(moduleBody);
+          modulesContainer.appendChild(details);
+        });
+      }
+
+      // ─── Form Submit Handler ───────────────────────────────────────────────
+
+      let es = null;
+
+      document.getElementById('btn-generate').addEventListener('click', () => {
+        const subject = document.getElementById('subject-input').value.trim();
+        if (!subject) return;
+
+        const skillLevel = document.getElementById('skill-level').value;
+
+        // Disable form during generation
+        disableForm();
+
+        // Clear previous course content (D-04)
+        document.getElementById('course-modules').innerHTML = '';
+        document.getElementById('course-header').innerHTML = '';
+
+        // Show pipeline section and initialize steps
+        showContentSection('pipeline-section');
+        initPipelineSteps();
+
+        // Update recent searches
+        const searches = loadRecentSearches();
+        const updatedSearches = updateRecentSearches(searches, subject);
+        try {
+          localStorage.setItem('ylc_searches', JSON.stringify(updatedSearches));
+        } catch (_) {
+          // Best-effort persistence
+        }
+        renderRecentSearches(updatedSearches);
+
+        // Close any existing SSE connection
+        if (es) {
+          es.close();
+          es = null;
+        }
+
+        // Open new SSE connection
+        const url = '/api/course-stream?subject=' + encodeURIComponent(subject) + '&skill_level=' + encodeURIComponent(skillLevel);
+        es = new EventSource(url);
+
+        // Register handlers for each pipeline step event
+        for (const eventName of STEP_ORDER) {
+          es.addEventListener(eventName, (e) => {
+            const data = JSON.parse(e.data);
+            updatePipelineStep(eventName);
+
+            if (eventName === 'course_assembled') {
+              es.close();
+              es = null;
+
+              if (data.error === 'TOO_FEW_VIDEOS') {
+                showError('Not enough high-quality videos found. Try a broader search term.');
+              } else {
+                renderCourse(data.course, subject, skillLevel);
+                saveCourseToHistory(data.course, subject, skillLevel);
+              }
+
+              enableForm();
+            }
+          });
+        }
+
+        // Named error event (server-sent pipeline error)
+        es.addEventListener('error', (e) => {
+          es.close();
+          es = null;
+
+          let data;
+          try {
+            data = JSON.parse(e.data);
+          } catch (_) {
+            data = null;
+          }
+
+          showError(resolveErrorMessage(data));
+          enableForm();
+        });
+
+        // Native EventSource network error (connection lost)
+        es.onerror = () => {
+          if (es) {
+            es.close();
+            es = null;
+          }
+          showError('Something went wrong generating your course. Check the server logs.');
+          enableForm();
+        };
+      });
+
+      // ─── Initialization ────────────────────────────────────────────────────
+
+      const initialSearches = loadRecentSearches();
+      renderRecentSearches(initialSearches);
+
+    });
   </script>
 </body>
 </html>
