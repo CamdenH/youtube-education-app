@@ -86,17 +86,26 @@ async function fetchVideoStats(videoIds) {
     return cachedItems;
   }
 
-  const params = new URLSearchParams({
-    key: process.env.YOUTUBE_API_KEY,
-    part: 'snippet,statistics,contentDetails,topicDetails',
-    id: uncachedIds.join(',')
-  });
+  // YouTube videos.list caps at 50 IDs per request
+  const chunks = [];
+  for (let i = 0; i < uncachedIds.length; i += 50) {
+    chunks.push(uncachedIds.slice(i, i + 50));
+  }
 
-  const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`);
-  if (!res.ok) handleYouTubeError(await res.json());
+  const fetchedItems = [];
+  for (const chunk of chunks) {
+    const params = new URLSearchParams({
+      key: process.env.YOUTUBE_API_KEY,
+      part: 'snippet,statistics,contentDetails,topicDetails',
+      id: chunk.join(',')
+    });
 
-  const data = await res.json();
-  const fetchedItems = data.items || [];
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`);
+    if (!res.ok) handleYouTubeError(await res.json());
+
+    const data = await res.json();
+    fetchedItems.push(...(data.items || []));
+  }
 
   fetchedItems.forEach(item => cacheSet(`video_${item.id}.json`, item));
 
