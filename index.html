@@ -979,10 +979,106 @@
         }
       }
 
-      // ─── Stub Functions (replaced in Plan 03) ──────────────────────────────
+      // ─── History Persistence ───────────────────────────────────────────────
+
+      function loadHistory() {
+        try {
+          return JSON.parse(localStorage.getItem('ylc_history') || '[]');
+        } catch (_) {
+          return [];
+        }
+      }
+
+      function saveHistory(entries) {
+        try {
+          localStorage.setItem('ylc_history', JSON.stringify(entries));
+        } catch (e) {
+          if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+            const sorted = [...entries].sort((a, b) => new Date(a.generatedAt) - new Date(b.generatedAt));
+            sorted.shift();
+            try {
+              localStorage.setItem('ylc_history', JSON.stringify(sorted));
+            } catch (_) { /* silent fail */ }
+          }
+        }
+      }
+
+      function renderHistory(history) {
+        const panel = document.getElementById('history-panel');
+        const list = document.getElementById('history-list');
+        const empty = document.getElementById('history-empty');
+
+        if (history.length === 0) {
+          panel.hidden = true;
+          return;
+        }
+
+        panel.hidden = false;
+        empty.hidden = true;
+        list.innerHTML = '';
+
+        history.forEach((entry, i) => {
+          const item = document.createElement('div');
+          item.className = 'history-item';
+          item.dataset.index = i;
+
+          const titleSpan = document.createElement('span');
+          titleSpan.className = 'history-title';
+          titleSpan.textContent = entry.course.title;
+
+          const badgeSpan = document.createElement('span');
+          badgeSpan.className = 'skill-badge';
+          badgeSpan.textContent = entry.skillLevel;
+
+          const metaSpan = document.createElement('span');
+          metaSpan.className = 'history-meta';
+          metaSpan.textContent = relativeTime(entry.generatedAt);
+
+          item.appendChild(titleSpan);
+          item.appendChild(badgeSpan);
+          item.appendChild(metaSpan);
+
+          item.addEventListener('click', () => restoreCourse(i));
+
+          list.appendChild(item);
+        });
+      }
+
+      function restoreCourse(index) {
+        const history = loadHistory();
+        const entry = history[index];
+        if (!entry) return;
+
+        currentSubject = entry.subject;
+        currentSkillLevel = entry.skillLevel;
+
+        renderCourse(entry.course, entry.subject, entry.skillLevel);
+
+        // Update active state on history items
+        const items = document.querySelectorAll('.history-item');
+        items.forEach((item, i) => {
+          if (i === index) {
+            item.classList.add('active');
+          } else {
+            item.classList.remove('active');
+          }
+        });
+
+        document.getElementById('course-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
 
       function saveCourseToHistory(course, subject, skillLevel) {
-        // Plan 03: wire localStorage history persistence
+        const entry = {
+          subject: subject,
+          skillLevel: skillLevel,
+          generatedAt: new Date().toISOString(),
+          course: course
+        };
+        let history = loadHistory();
+        history.unshift(entry);
+        if (history.length > 10) history = history.slice(0, 10);
+        saveHistory(history);
+        renderHistory(history);
       }
 
       // ─── Export ────────────────────────────────────────────────────────────
@@ -1204,14 +1300,29 @@
 
             contentDiv.appendChild(questionsDetails);
 
-            // Watched checkbox row (stub — Plan 03 wires localStorage)
+            // Watched checkbox row — persists to ylc_watched flat map (global by videoId)
             const watchedRow = document.createElement('div');
             watchedRow.className = 'watched-row';
 
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.id = 'watched-' + video.videoId;
-            checkbox.addEventListener('change', () => { /* Plan 03: persist to ylc_watched */ });
+
+            // Read current watched state at render time (D-01: global by videoId)
+            const watched = JSON.parse(localStorage.getItem('ylc_watched') || '{}');
+            checkbox.checked = !!watched[video.videoId];
+
+            checkbox.addEventListener('change', () => {
+              const w = JSON.parse(localStorage.getItem('ylc_watched') || '{}');
+              if (checkbox.checked) {
+                w[video.videoId] = true;
+              } else {
+                delete w[video.videoId];
+              }
+              try {
+                localStorage.setItem('ylc_watched', JSON.stringify(w));
+              } catch (_) { /* silent fail */ }
+            });
 
             const checkboxLabel = document.createElement('label');
             checkboxLabel.htmlFor = 'watched-' + video.videoId;
@@ -1248,12 +1359,17 @@
       // ─── Form Submit Handler ───────────────────────────────────────────────
 
       let es = null;
+      let currentSubject = '';
+      let currentSkillLevel = '';
 
       document.getElementById('btn-generate').addEventListener('click', () => {
         const subject = document.getElementById('subject-input').value.trim();
         if (!subject) return;
 
         const skillLevel = document.getElementById('skill-level').value;
+
+        currentSubject = subject;
+        currentSkillLevel = skillLevel;
 
         // Disable form during generation
         disableForm();
@@ -1339,6 +1455,9 @@
 
       const initialSearches = loadRecentSearches();
       renderRecentSearches(initialSearches);
+
+      const initialHistory = loadHistory();
+      renderHistory(initialHistory);
 
     });
   </script>
