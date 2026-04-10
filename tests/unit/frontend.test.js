@@ -386,3 +386,106 @@ describe('saveWithEviction', () => {
     assert.equal(saved[0].data, 'newer');
   });
 });
+
+// ─── Phase 5: Lazy Hints — localStorage + render helpers ─────────────────────
+// Canonical implementations — copy these into index.html <script> block
+
+/**
+ * Persist an array of 3 hint strings for a videoId to ylc_hints localStorage key.
+ * Schema: { [videoId]: string[] }
+ *
+ * @param {string} videoId
+ * @param {string[]} hints - Array of exactly 3 hint strings
+ * @param {Storage} storage - Allows injection of a mock for testing
+ */
+function persistHints(videoId, hints, storage) {
+  try {
+    const stored = JSON.parse(storage.getItem('ylc_hints') || '{}');
+    stored[videoId] = hints;
+    storage.setItem('ylc_hints', JSON.stringify(stored));
+  } catch (_) { /* best-effort */ }
+}
+
+/**
+ * Load hints for a videoId from ylc_hints. Returns null if not found.
+ *
+ * @param {string} videoId
+ * @param {Storage} storage
+ * @returns {string[]|null}
+ */
+function loadHints(videoId, storage) {
+  try {
+    const stored = JSON.parse(storage.getItem('ylc_hints') || '{}');
+    return stored[videoId] || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// ─── Tests ────────────────────────────────────────────────────────────────────
+
+describe('persistHints', () => {
+  it('writes hints array keyed by videoId to ylc_hints', () => {
+    const store = {};
+    const mockStorage = {
+      getItem: (k) => store[k] || null,
+      setItem: (k, v) => { store[k] = v; },
+    };
+    persistHints('vid1', ['H1', 'H2', 'H3'], mockStorage);
+    const saved = JSON.parse(store['ylc_hints']);
+    assert.deepStrictEqual(saved['vid1'], ['H1', 'H2', 'H3']);
+  });
+
+  it('does not overwrite hints for other videos', () => {
+    const store = { ylc_hints: JSON.stringify({ vid99: ['A', 'B', 'C'] }) };
+    const mockStorage = {
+      getItem: (k) => store[k] || null,
+      setItem: (k, v) => { store[k] = v; },
+    };
+    persistHints('vid1', ['H1', 'H2', 'H3'], mockStorage);
+    const saved = JSON.parse(store['ylc_hints']);
+    assert.deepStrictEqual(saved['vid99'], ['A', 'B', 'C'], 'vid99 hints must be untouched');
+    assert.deepStrictEqual(saved['vid1'], ['H1', 'H2', 'H3']);
+  });
+});
+
+describe('loadHints', () => {
+  it('returns hints array for a stored videoId', () => {
+    const store = { ylc_hints: JSON.stringify({ vid1: ['H1', 'H2', 'H3'] }) };
+    const mockStorage = {
+      getItem: (k) => store[k] || null,
+      setItem: (k, v) => { store[k] = v; },
+    };
+    const result = loadHints('vid1', mockStorage);
+    assert.deepStrictEqual(result, ['H1', 'H2', 'H3']);
+  });
+
+  it('returns null when videoId not in ylc_hints', () => {
+    const store = {};
+    const mockStorage = {
+      getItem: (k) => store[k] || null,
+      setItem: () => {},
+    };
+    const result = loadHints('vid1', mockStorage);
+    assert.strictEqual(result, null);
+  });
+
+  it('returns null when ylc_hints contains a different videoId', () => {
+    const store = { ylc_hints: JSON.stringify({ vid99: ['A', 'B', 'C'] }) };
+    const mockStorage = {
+      getItem: (k) => store[k] || null,
+      setItem: () => {},
+    };
+    const result = loadHints('vid1', mockStorage);
+    assert.strictEqual(result, null);
+  });
+
+  it('returns null when storage throws', () => {
+    const mockStorage = {
+      getItem: () => { throw new Error('storage unavailable'); },
+      setItem: () => {},
+    };
+    const result = loadHints('vid1', mockStorage);
+    assert.strictEqual(result, null);
+  });
+});
