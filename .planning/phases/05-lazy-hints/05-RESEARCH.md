@@ -391,17 +391,19 @@ try {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does the course JSON include transcript text?**
    - What we know: Phase 3 course JSON contract (03-CONTEXT.md) does not include a `transcript` field in the video object. Transcript text was used by assembler.js internally but not stored.
    - What's unclear: Whether assembler.js was modified post-context to include it, or whether the frontend has another access path.
    - Recommendation: Read assembler.js before planning to confirm the video object shape. If no `transcript` field, the planner should include a task to add `transcriptSnippet` (first 500 words) to each video object in assembler.js.
+   - **RESOLVED:** Plan 05-02 Task 1 adds `transcriptSnippet` (first 500 words of transcript text) to each video object in `assembler.js` via `mergeClaudeOutput`. The field is passed through to the course JSON and read by the frontend when constructing the POST body.
 
 2. **Which Claude model ID is used in scorer.js / assembler.js?**
    - What we know: `@anthropic-ai/sdk ^0.82.0` is installed. The hints route will use the same model.
    - What's unclear: Exact model string (e.g., `claude-opus-4-5`, `claude-3-5-haiku-20241022`, etc.)
    - Recommendation: Read scorer.js or assembler.js for the model name and use it verbatim.
+   - **RESOLVED:** `claude-haiku-4-5-20251001` — confirmed from `assembler.js` interfaces block. Plan 05-02 uses this model verbatim.
 
 ---
 
