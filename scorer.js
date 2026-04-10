@@ -100,7 +100,7 @@ async function scoreChannelCredibility(channels, videos) {
   const text = await callClaude(async () => {
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
+      max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     });
     return response.content[0].text;

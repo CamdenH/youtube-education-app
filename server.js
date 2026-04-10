@@ -31,6 +31,7 @@ app.get('/api/course-stream', async (req, res) => {
   try {
     await courseStreamHandler(req, res);
   } catch (err) {
+    console.error('[course-stream] pipeline error:', err);
     // If headers already sent (SSE stream started), emit error event
     if (res.headersSent) {
       if (err instanceof YouTubeQuotaError) {
