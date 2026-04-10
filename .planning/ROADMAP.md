@@ -99,68 +99,17 @@ Plans:
   1. Clicking "Reveal thinking points" on a video triggers a POST /api/hints call and shows a loading state only for that video
   2. All 3 hints appear together after the call completes; hints are directional but do not reveal the full answer
   3. Hints are not requested at course generation time — the call fires only when the user first expands that video's questions accordion
-**Plans:** 3 plans
-
-Plans:
-- [ ] 05-01-PLAN.md — Wave 0: failing test stubs for server and frontend hint cases
-- [ ] 05-02-PLAN.md — assembler.js transcriptSnippet + server.js POST /api/hints route
-- [ ] 05-03-PLAN.md — index.html fetchHints, localStorage helpers, renderCourse restore, human-verify checkpoint
-
-### Phase 6: Auth + User Model
-**Goal**: Every request is authenticated via Clerk; a `users` table in Supabase is created and synced on sign-up via Clerk webhook; protected routes return 401 for unauthenticated requests
-**Depends on**: Phase 5
-**Requirements**: AUTH-01, AUTH-02, AUTH-03
-**Success Criteria** (what must be TRUE):
-  1. Unauthenticated requests to `/api/course-stream` and `/api/hints` return 401
-  2. A new Clerk sign-up triggers a webhook that inserts a row into `users` (clerk_id, email, created_at)
-  3. `auth.js` middleware attaches `req.user` (clerk_id + subscription tier) to every authenticated request
-**Plans**: TBD
-
-### Phase 7: Course Persistence
-**Goal**: Generated courses are saved to Supabase per user; users can retrieve their course history; file-based cache is replaced with a Supabase-backed cache that survives deploys
-**Depends on**: Phase 6
-**Requirements**: PERS-04, PERS-05, PERS-06
-**Success Criteria** (what must be TRUE):
-  1. Every completed course stream is saved to a `courses` table (user_id, topic, skill_level, course_json, created_at)
-  2. `GET /api/courses` returns the authenticated user's course history (newest first, limit 50)
-  3. Cache lookups hit Supabase instead of `.cache/` — repeated identical queries do not re-hit YouTube or Claude APIs
-**Plans**: TBD
-
-### Phase 8: Billing + Tier Enforcement
-**Goal**: Clerk Billing subscriptions are wired up with at least two tiers; tier limits are enforced at the API layer before the SSE stream starts
-**Depends on**: Phase 7
-**Requirements**: BILL-01, BILL-02, BILL-03, BILL-04
-**Success Criteria** (what must be TRUE):
-  1. Users can subscribe and manage their plan via Clerk's hosted billing portal
-  2. Free-tier users are blocked from `/api/course-stream` after hitting their monthly generation limit; the error is a clear SSE `error` event, not a crash
-  3. Pro-tier users have a higher (or unlimited) generation limit
-  4. Billing webhook handlers are idempotent — replayed events do not double-count usage
-**Plans**: TBD
-
-### Phase 9: SaaS UI + Landing Page
-**Goal**: The app has a public landing page, a sign-in/sign-up flow, an account page showing subscription status, and course history rendered from the server-side API instead of localStorage
-**Depends on**: Phase 8
-**Requirements**: SAAS-UI-01, SAAS-UI-02, SAAS-UI-03, SAAS-UI-04
-**Success Criteria** (what must be TRUE):
-  1. A public landing page exists at `/` for unauthenticated visitors; authenticated users are redirected to the app
-  2. Clerk's hosted sign-in/sign-up UI is reachable and functional
-  3. An account page shows the user's current plan, usage this month, and a link to manage billing
-  4. Course history is loaded from `GET /api/courses` — localStorage history from Phase 4 is replaced or supplemented
 **Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete   | 2026-03-19 |
-| 2. Scoring + Query Generation | 4/4 | Complete | - |
-| 3. Transcript + Course Assembly | 3/3 | Complete | - |
-| 4. Frontend + Persistence + Export | 4/4 | Complete | 2026-04-09 |
-| 5. Lazy Hints | 0/3 | Not started | - |
-| 6. Auth + User Model | 0/TBD | Not started | - |
-| 7. Course Persistence | 0/TBD | Not started | - |
-| 8. Billing + Tier Enforcement | 0/TBD | Not started | - |
-| 9. SaaS UI + Landing Page | 0/TBD | Not started | - |
+| 2. Scoring + Query Generation | 0/4 | Not started | - |
+| 3. Transcript + Course Assembly | 0/3 | Not started | - |
+| 4. Frontend + Persistence + Export | 0/4 | Not started | - |
+| 5. Lazy Hints | 0/TBD | Not started | - |
