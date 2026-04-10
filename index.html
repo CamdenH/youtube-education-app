@@ -604,6 +604,35 @@
       outline-offset: 2px;
     }
 
+    /* ── Hint error + retry ──────────────────────────────────────────────── */
+
+    .hint-error {
+      font-size: var(--font-size-label);
+      color: var(--color-destructive);
+      margin-top: var(--space-sm);
+    }
+
+    .btn-retry-hint {
+      background: transparent;
+      border: 1px solid var(--color-accent);
+      color: var(--color-accent);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: var(--font-size-label);
+      font-family: inherit;
+      cursor: pointer;
+      margin-left: var(--space-sm);
+    }
+
+    .btn-retry-hint:hover {
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-retry-hint:focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
     /* ── Watched checkbox row ────────────────────────────────────────────── */
 
     .watched-row {
@@ -1096,6 +1125,102 @@
         URL.revokeObjectURL(url);
       }
 
+      // ── Hint localStorage helpers ─────────────────────────────────────────
+
+      const HINTS_KEY = 'ylc_hints';
+
+      function persistHints(videoId, hints) {
+        try {
+          const stored = JSON.parse(localStorage.getItem(HINTS_KEY) || '{}');
+          stored[videoId] = hints;
+          localStorage.setItem(HINTS_KEY, JSON.stringify(stored));
+        } catch (_) { /* best-effort */ }
+      }
+
+      function loadHints(videoId) {
+        try {
+          const stored = JSON.parse(localStorage.getItem(HINTS_KEY) || '{}');
+          return stored[videoId] || null;
+        } catch (_) {
+          return null;
+        }
+      }
+
+      // ── Hint DOM helpers ──────────────────────────────────────────────────
+
+      function renderHints(videoId, hints, questionsContainer) {
+        const hintEls = questionsContainer.querySelectorAll('.hint-text[data-video-id="' + videoId + '"]');
+        hintEls.forEach(function(el, i) {
+          if (hints[i]) {
+            el.innerHTML = '';
+            const label = document.createElement('span');
+            label.className = 'hint-label';
+            label.textContent = 'Thinking point: ';
+            el.appendChild(label);
+            el.appendChild(document.createTextNode(hints[i]));
+            el.hidden = false;
+          }
+        });
+      }
+
+      function showHintError(container, retryFn) {
+        clearHintError(container);
+        const err = document.createElement('p');
+        err.className = 'hint-error';
+        err.dataset.hintError = 'true';
+        err.textContent = 'Could not load hints. ';
+        const retryBtn = document.createElement('button');
+        retryBtn.className = 'btn-retry-hint';
+        retryBtn.textContent = 'Try again';
+        retryBtn.addEventListener('click', retryFn);
+        err.appendChild(retryBtn);
+        container.appendChild(err);
+      }
+
+      function clearHintError(container) {
+        const existing = container.querySelector('[data-hint-error]');
+        if (existing) existing.remove();
+      }
+
+      // ── Hint fetch ────────────────────────────────────────────────────────
+
+      async function fetchHints(video, btn, container) {
+        // Build transcriptSnippet from assembled course data (first 500 words)
+        const rawText = video.transcriptSnippet || '';
+        const transcriptSnippet = rawText.split(/\s+/).filter(Boolean).slice(0, 500).join(' ');
+
+        // Loading state — scoped to this button only
+        btn.disabled = true;
+        btn.textContent = 'Loading hints...';
+        clearHintError(container);
+
+        try {
+          const res = await fetch('/api/hints', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              videoId: video.videoId,
+              videoTitle: video.title,
+              questions: video.questions.map(function(q) { return q.text; }),
+              transcriptSnippet: transcriptSnippet,
+            }),
+          });
+
+          if (!res.ok) {
+            throw new Error('Server error ' + res.status);
+          }
+
+          const data = await res.json();
+          renderHints(video.videoId, data.hints, container);
+          persistHints(video.videoId, data.hints);
+          btn.hidden = true;
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = 'Reveal thinking points';
+          showHintError(container, function() { fetchHints(video, btn, container); });
+        }
+      }
+
       // ─── Course Rendering ──────────────────────────────────────────────────
 
       function capitalize(str) {
@@ -1295,7 +1420,16 @@
             hintsBtn.className = 'btn-hints';
             hintsBtn.dataset.videoId = video.videoId;
             hintsBtn.textContent = 'Reveal thinking points';
-            hintsBtn.addEventListener('click', () => { /* Phase 5: POST /api/hint */ });
+            // Check for stored hints and restore immediately (reload restore path)
+            const storedHints = loadHints(video.videoId);
+            if (storedHints) {
+              renderHints(video.videoId, storedHints, questionsDetails);
+              hintsBtn.hidden = true;
+            } else {
+              hintsBtn.addEventListener('click', function() {
+                fetchHints(video, hintsBtn, questionsDetails);
+              });
+            }
             questionsDetails.appendChild(hintsBtn);
 
             contentDiv.appendChild(questionsDetails);
