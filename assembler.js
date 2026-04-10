@@ -106,15 +106,17 @@ Return ONLY a JSON object with this exact structure. No explanation, no code fen
  *
  * This function adds to each video: title, channelTitle, thumbnail, url,
  * durationSeconds, score — derived from the scored video object, NOT from Claude.
+ * It also adds transcriptSnippet: the first 500 words of transcript text, or '' if none.
  *
  * Thumbnail pattern: https://i.ytimg.com/vi/{videoId}/mqdefault.jpg
  * URL pattern:       https://www.youtube.com/watch?v={videoId}
  *
  * @param {Object} claudeCourse - Parsed JSON object returned by Claude
  * @param {Array} videos - Scored video objects (same set sent to Claude)
+ * @param {Object} transcripts - Plain object keyed by videoId: { [videoId]: { source, text } }
  * @returns {Object} Complete course object matching the locked JSON contract
  */
-function mergeClaudeOutput(claudeCourse, videos) {
+function mergeClaudeOutput(claudeCourse, videos, transcripts) {
   // Build a lookup map from videoId to scored video object
   const videoMap = {};
   for (const v of videos) {
@@ -130,17 +132,21 @@ function mergeClaudeOutput(claudeCourse, videos) {
         return null; // filtered out below with .filter(Boolean)
       }
 
+      const rawText = (transcripts && transcripts[claudeVideo.videoId] && transcripts[claudeVideo.videoId].text) || '';
+      const transcriptSnippet = rawText.split(/\s+/).filter(Boolean).slice(0, 500).join(' ');
+
       return {
-        videoId:         claudeVideo.videoId,
-        title:           scored.snippet.title,
-        channelTitle:    scored.snippet.channelTitle,
-        thumbnail:       `https://i.ytimg.com/vi/${claudeVideo.videoId}/mqdefault.jpg`,
-        url:             `https://www.youtube.com/watch?v=${claudeVideo.videoId}`,
-        durationSeconds: parseDurationSeconds(scored.contentDetails ? scored.contentDetails.duration : ''),
-        score:           scored.score,
-        blurb:           claudeVideo.blurb,
-        outdated:        claudeVideo.outdated,
-        questions:       claudeVideo.questions,
+        videoId:          claudeVideo.videoId,
+        title:            scored.snippet.title,
+        channelTitle:     scored.snippet.channelTitle,
+        thumbnail:        `https://i.ytimg.com/vi/${claudeVideo.videoId}/mqdefault.jpg`,
+        url:              `https://www.youtube.com/watch?v=${claudeVideo.videoId}`,
+        durationSeconds:  parseDurationSeconds(scored.contentDetails ? scored.contentDetails.duration : ''),
+        score:            scored.score,
+        blurb:            claudeVideo.blurb,
+        outdated:         claudeVideo.outdated,
+        questions:        claudeVideo.questions,
+        transcriptSnippet: transcriptSnippet,
       };
     }).filter(Boolean),
   }));
@@ -205,7 +211,7 @@ async function assembleCourse(videos, transcripts, subject, skillLevel) {
   });
 
   const claudeCourse = parseClaudeJSON(text);
-  return mergeClaudeOutput(claudeCourse, videos);
+  return mergeClaudeOutput(claudeCourse, videos, transcripts);
 }
 
 module.exports = { assembleCourse };
