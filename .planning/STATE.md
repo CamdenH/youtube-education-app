@@ -24,8 +24,10 @@ See: .planning/PROJECT.md (updated 2026-04-12)
 
 ## Current Position
 
-v1.0 MVP complete and archived. v2.0 SaaS milestone starting.
-Next: Phase 6 (auth — Clerk integration, protected routes, user identity)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-12 — Milestone v2.0 SaaS started
 
 ## Performance Metrics
 
