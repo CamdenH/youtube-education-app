@@ -2,7 +2,11 @@
 
 require('dotenv').config();
 
+const path = require('path');
 const express = require('express');
+const { clerkMiddleware, requireAuth } = require('@clerk/express');
+const { clerkWebhookHandler } = require('./webhooks');
+const { requireUser } = require('./auth');
 const { courseStreamHandler, sendEvent } = require('./sse');
 const { transcriptHandler } = require('./transcript');
 const { YouTubeQuotaError } = require('./youtube');
@@ -13,15 +17,35 @@ const anthropic = new Anthropic();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve static files from project root (index.html)
+// STEP 1: Webhook route with raw body — BEFORE express.json() (D-11)
+// Raw body is required by verifyWebhook for HMAC-SHA256 signature check (T-06-09)
+app.post('/api/webhooks/clerk', express.raw({ type: 'application/json' }), clerkWebhookHandler);
+
+// STEP 2: Clerk middleware — before static files and routes
+app.use(clerkMiddleware());
+
+// STEP 3: Landing page — fully static, no auth (D-05)
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
+
+// STEP 4: Onboarding — static, no auth gate (accessible post-signup before session fully established)
+app.get('/onboarding', (req, res) => res.sendFile(path.join(__dirname, 'onboarding.html')));
+
+// STEP 5: Static files (CSS, JS assets) — unchanged
 app.use(express.static(__dirname));
+
+// STEP 6: JSON body parser — AFTER webhook route (D-11)
 app.use(express.json());
+
+// STEP 7: Protected HTML route — redirect unauth to Clerk sign-in (D-04, T-06-06)
+app.get('/app', requireAuth({ signInUrl: process.env.CLERK_SIGN_IN_URL }), (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // Validation constants for /api/course-stream
 const VALID_LEVELS = new Set(['beginner', 'intermediate', 'advanced', 'all levels']);
 
-// API routes
-app.get('/api/course-stream', async (req, res) => {
+// STEP 8: Protected API routes — return 401 JSON (AUTH-03, T-06-05)
+app.get('/api/course-stream', requireUser, async (req, res) => {
   // Validate inputs before opening SSE stream
   const { subject, skill_level } = req.query;
 
@@ -51,6 +75,7 @@ app.get('/api/course-stream', async (req, res) => {
   }
 });
 
+// STEP 9: Other API routes (transcript, hints) — keep existing
 app.get('/api/transcript/:videoId', transcriptHandler);
 
 /**
