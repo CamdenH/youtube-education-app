@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="How YouTube Learning Curator works — structured courses from the best YouTube videos.">
+  <title>How it works — YouTube Learning Curator</title>
+  <style>
+    :root {
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+      --space-3xl: 64px;
+
+      --font-size-label: 14px;
+      --font-size-body: 16px;
+      --font-size-heading: 20px;
+      --font-size-display: 28px;
+      --font-weight-regular: 400;
+      --font-weight-semibold: 600;
+      --line-height-body: 1.5;
+      --line-height-label: 1.4;
+      --line-height-heading: 1.2;
+      --line-height-display: 1.15;
+
+      --color-bg: #0f0f0f;
+      --color-surface: #1a1a1a;
+      --color-surface-raised: #242424;
+      --color-text: #f0f0f0;
+      --color-text-muted: #a0a0a0;
+      --color-accent: #3b82f6;
+      --color-success: #22c55e;
+      --color-destructive: #ef4444;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: var(--font-size-body);
+      line-height: var(--line-height-body);
+      margin: 0;
+      padding: 0;
+    }
+
+    .page-wrapper {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: var(--space-lg);
+    }
+
+    /* ── Page header ────────────────────────────────────────────────────────── */
+
+    .page-header {
+      padding: var(--space-xl) 0 var(--space-lg);
+    }
+
+    .page-title {
+      font-size: var(--font-size-display);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-display);
+      color: var(--color-text);
+      margin: 0;
+    }
+
+    /* ── Content sections ───────────────────────────────────────────────────── */
+
+    .content-section {
+      padding: var(--space-xl) 0;
+      border-top: 1px solid var(--color-surface-raised);
+    }
+
+    .section-heading {
+      font-size: var(--font-size-heading);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-heading);
+      color: var(--color-text);
+      margin: 0 0 var(--space-md) 0;
+    }
+
+    .section-body {
+      font-size: var(--font-size-body);
+      color: var(--color-text-muted);
+      line-height: var(--line-height-body);
+      margin: 0;
+    }
+
+    /* ── Skill levels ───────────────────────────────────────────────────────── */
+
+    .skill-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+
+    .skill-item {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+
+    .skill-label {
+      font-size: var(--font-size-body);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text);
+      margin: 0;
+    }
+
+    .skill-description {
+      font-size: var(--font-size-body);
+      color: var(--color-text-muted);
+      margin: 0;
+    }
+
+    /* ── Example course card ────────────────────────────────────────────────── */
+
+    .example-card {
+      background: var(--color-surface);
+      border-radius: 8px;
+      padding: var(--space-md);
+      border: 1px solid var(--color-surface-raised);
+    }
+
+    .example-course-title {
+      font-size: var(--font-size-body);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text);
+      margin: 0 0 var(--space-md) 0;
+    }
+
+    .video-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+
+    .video-item {
+      background: var(--color-surface-raised);
+      border-radius: 6px;
+      padding: var(--space-sm) var(--space-md);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-sm);
+    }
+
+    .video-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .video-title {
+      font-size: var(--font-size-body);
+      color: var(--color-text);
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .video-channel {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      margin: 0;
+    }
+
+    .score-badge {
+      font-size: var(--font-size-label);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-accent);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── CTA section ────────────────────────────────────────────────────────── */
+
+    .cta-section {
+      padding: var(--space-xl) 0 var(--space-2xl);
+      border-top: 1px solid var(--color-surface-raised);
+    }
+
+    .btn-primary {
+      display: inline-block;
+      background: var(--color-accent);
+      color: white;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: var(--font-size-body);
+      font-family: inherit;
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-body);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn-primary:focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 480px) {
+      .page-title {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+
+    <!-- Page title -->
+    <header class="page-header">
+      <h1 class="page-title">How it works</h1>
+    </header>
+
+    <!-- Section 1: How course generation works -->
+    <section class="content-section" aria-label="How course generation works">
+      <h2 class="section-heading">How course generation works</h2>
+      <p class="section-body">Enter any topic you want to learn. Our AI searches YouTube, scores videos on relevance, depth, and quality, then assembles them into a structured course — from foundational concepts to advanced material.</p>
+    </section>
+
+    <!-- Section 2: Skill level options -->
+    <section class="content-section" aria-label="Skill levels">
+      <h2 class="section-heading">Choose your skill level</h2>
+      <ul class="skill-list">
+        <li class="skill-item">
+          <p class="skill-label">Beginner</p>
+          <p class="skill-description">New to the topic — starts from foundational concepts</p>
+        </li>
+        <li class="skill-item">
+          <p class="skill-label">Intermediate</p>
+          <p class="skill-description">Familiar with the basics — skips intro content</p>
+        </li>
+        <li class="skill-item">
+          <p class="skill-label">Advanced</p>
+          <p class="skill-description">Deep expertise — focuses on advanced material</p>
+        </li>
+        <li class="skill-item">
+          <p class="skill-label">All levels</p>
+          <p class="skill-description">Mix of everything — good for a broad overview</p>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Section 3: Static example course -->
+    <section class="content-section" aria-label="Example course">
+      <h2 class="section-heading">What you'll get</h2>
+      <div class="example-card">
+        <p class="example-course-title">Introduction to Machine Learning</p>
+        <ul class="video-list">
+          <li class="video-item">
+            <div class="video-info">
+              <p class="video-title">But what is a neural network?</p>
+              <p class="video-channel">3Blue1Brown</p>
+            </div>
+            <span class="score-badge">9.2</span>
+          </li>
+          <li class="video-item">
+            <div class="video-info">
+              <p class="video-title">Gradient descent, how neural networks learn</p>
+              <p class="video-channel">3Blue1Brown</p>
+            </div>
+            <span class="score-badge">9.0</span>
+          </li>
+          <li class="video-item">
+            <div class="video-info">
+              <p class="video-title">Machine Learning for Everybody</p>
+              <p class="video-channel">freeCodeCamp</p>
+            </div>
+            <span class="score-badge">8.7</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Section 4: CTA -->
+    <section class="cta-section" aria-label="Get started">
+      <a href="/app" class="btn-primary">Start learning</a>
+    </section>
+
+  </div>
+</body>
+</html>
