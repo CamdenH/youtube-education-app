@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Enter a topic. Get a structured course from the top-rated YouTube videos — scored, sequenced, and ready to watch.">
+  <title>YouTube Learning Curator — Learn anything with the best YouTube has to offer</title>
+  <style>
+    :root {
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+      --space-3xl: 64px;
+
+      --font-size-label: 14px;
+      --font-size-body: 16px;
+      --font-size-heading: 20px;
+      --font-size-display: 28px;
+      --font-weight-regular: 400;
+      --font-weight-semibold: 600;
+      --line-height-body: 1.5;
+      --line-height-label: 1.4;
+      --line-height-heading: 1.2;
+      --line-height-display: 1.15;
+
+      --color-bg: #0f0f0f;
+      --color-surface: #1a1a1a;
+      --color-surface-raised: #242424;
+      --color-text: #f0f0f0;
+      --color-text-muted: #a0a0a0;
+      --color-accent: #3b82f6;
+      --color-success: #22c55e;
+      --color-destructive: #ef4444;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: var(--font-size-body);
+      line-height: var(--line-height-body);
+      margin: 0;
+      padding: 0;
+    }
+
+    .page-wrapper {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: var(--space-lg);
+    }
+
+    /* ── Header nav ─────────────────────────────────────────────────────────── */
+
+    header {
+      padding: var(--space-lg) 0 var(--space-xl);
+    }
+
+    .nav-brand {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      line-height: var(--line-height-label);
+    }
+
+    /* ── Hero ───────────────────────────────────────────────────────────────── */
+
+    .hero {
+      padding: var(--space-xl) 0;
+    }
+
+    .hero-headline {
+      font-size: var(--font-size-display);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-display);
+      color: var(--color-text);
+      margin: 0 0 var(--space-md) 0;
+    }
+
+    .hero-subheading {
+      font-size: var(--font-size-body);
+      color: var(--color-text-muted);
+      line-height: var(--line-height-body);
+      margin: 0 0 var(--space-xl) 0;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      background: var(--color-accent);
+      color: white;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: var(--font-size-body);
+      font-family: inherit;
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-body);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn-primary:focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    .link-secondary {
+      color: var(--color-accent);
+      text-decoration: none;
+      font-size: var(--font-size-body);
+    }
+
+    .link-secondary:hover {
+      text-decoration: underline;
+    }
+
+    .link-secondary:focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    /* ── Features ───────────────────────────────────────────────────────────── */
+
+    .features {
+      padding: var(--space-xl) 0;
+      border-top: 1px solid var(--color-surface-raised);
+    }
+
+    .features-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xl);
+    }
+
+    .feature-item {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+
+    .feature-heading {
+      font-size: var(--font-size-heading);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-heading);
+      color: var(--color-text);
+      margin: 0;
+    }
+
+    .feature-description {
+      font-size: var(--font-size-body);
+      font-weight: var(--font-weight-regular);
+      color: var(--color-text-muted);
+      line-height: var(--line-height-body);
+      margin: 0;
+    }
+
+    /* ── CTA section ────────────────────────────────────────────────────────── */
+
+    .cta-section {
+      padding: var(--space-xl) 0;
+      border-top: 1px solid var(--color-surface-raised);
+      text-align: center;
+    }
+
+    .cta-heading {
+      font-size: var(--font-size-heading);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-heading);
+      color: var(--color-text);
+      margin: 0 0 var(--space-md) 0;
+    }
+
+    .cta-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+    }
+
+    /* ── Footer ─────────────────────────────────────────────────────────────── */
+
+    footer {
+      padding: var(--space-xl) 0 var(--space-lg);
+      border-top: 1px solid var(--color-surface-raised);
+    }
+
+    .footer-text {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      margin: 0;
+      line-height: var(--line-height-label);
+    }
+
+    @media (max-width: 480px) {
+      .hero-headline {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <!-- Header nav -->
+    <header>
+      <span class="nav-brand">YouTube Learning Curator</span>
+    </header>
+
+    <!-- Hero section -->
+    <section class="hero">
+      <h1 class="hero-headline">Learn anything with the best YouTube has to offer</h1>
+      <p class="hero-subheading">Enter a topic. Get a structured course from the top-rated YouTube videos — scored, sequenced, and ready to watch.</p>
+      <div class="hero-actions">
+        <a href="/app" class="btn-primary">Sign up free</a>
+        <a href="/app" class="link-secondary">Go to app</a>
+      </div>
+    </section>
+
+    <!-- Features section -->
+    <section class="features" aria-label="Features">
+      <ul class="features-list">
+        <li class="feature-item">
+          <h2 class="feature-heading">AI-Powered Curation</h2>
+          <p class="feature-description">Claude scores every video on relevance, depth, and production quality — no more guessing which tutorial is worth your time.</p>
+        </li>
+        <li class="feature-item">
+          <h2 class="feature-heading">Structured Learning Path</h2>
+          <p class="feature-description">Videos are sequenced from foundational to advanced, with comprehension questions to test your understanding.</p>
+        </li>
+        <li class="feature-item">
+          <h2 class="feature-heading">Any Topic, Any Level</h2>
+          <p class="feature-description">From Python basics to quantum computing — enter any subject and get a course tailored to your skill level.</p>
+        </li>
+      </ul>
+    </section>
+
+    <!-- CTA section -->
+    <section class="cta-section" aria-label="Get started">
+      <h2 class="cta-heading">Ready to start learning?</h2>
+      <div class="cta-actions">
+        <a href="/app" class="btn-primary">Sign up free</a>
+        <a href="/app" class="link-secondary">Go to app</a>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <p class="footer-text">YouTube Learning Curator</p>
+    </footer>
+  </div>
+</body>
+</html>
