@@ -1,340 +1,186 @@
-# Technology Stack
+---
+title: Technology Stack — v2.0 SaaS Additions
+type: stack-research
+milestone: v2.0 SaaS
+researched: 2026-04-12
+confidence: HIGH (versions verified via npm registry and official docs, April 2026)
+---
 
-**Project:** YouTube Learning Curator
-**Researched:** 2026-03-18
-**Confidence note:** External tools (WebFetch, WebSearch, npm CLI) were unavailable during this research session. Version numbers are based on training data through August 2025. Versions MUST be verified with `npm view <pkg> version` before writing package.json.
+# Technology Stack — v2.0 SaaS
+
+This file covers ONLY the new libraries needed for v2.0. Existing v1.0 stack (Express 4.18, @anthropic-ai/sdk ^0.82.0, dotenv ^16, node:test) is validated and not re-researched here.
 
 ---
 
-## Recommended Stack
+## New Libraries
 
-### Core Framework
+### Auth — Server Side
 
-| Technology | Version (verify) | Purpose | Why |
-|------------|-----------------|---------|-----|
-| Node.js | 20 LTS or 22 LTS | Runtime | LTS branch guarantees stability; 20 is widely deployed, 22 is current LTS as of late 2024. Either works. Use whatever is on your machine. |
-| Express | 4.x (4.19+) | HTTP server | Express 5 reached stable in late 2024 but has breaking changes (promise rejection handling, path-to-regexp v8). For a simple single-file server there's no compelling reason to take on v5 migration risk. Stick with 4.x. |
+| Library | Version | Purpose | Why |
+|---------|---------|---------|-----|
+| `@clerk/express` | `^2.0.7` | Clerk middleware + session verification for Express routes | The official Clerk SDK for Express. Replaces the deprecated `@clerk/clerk-sdk-node` (EOL January 10, 2025). Provides `clerkMiddleware()` (attaches auth to all routes), `requireAuth()` (blocks unauthenticated requests), and `getAuth(req)` (reads auth state in a route handler). `auth.has({ plan: 'pro' })` gates features by subscription plan. Drop-in into the flat Express structure — one `app.use(clerkMiddleware())` call before routes. |
 
-**Confidence (Express version):** MEDIUM — Express 5.0.0 was released stable in late 2024 per my training data, but adoption in patterns/tutorials is still primarily 4.x. Verify current recommended version before choosing.
+**Integration point:** `server.js` — register `clerkMiddleware()` as the first `app.use()` call after body parsers. Add a `requireAuth()` middleware to the `/api/generate` and `/api/hints` routes. Gate usage limits using `getAuth(req).has({ plan: 'pro' })` inside route handlers.
 
-### YouTube Integration
-
-| Technology | Version (verify) | Purpose | Why |
-|------------|-----------------|---------|-----|
-| `googleapis` | ^140.x | YouTube Data API v3 | Official Google client library. Handles auth, quota headers, type-safe API calls. Alternative is raw fetch to `https://www.googleapis.com/youtube/v3/` — do NOT use raw fetch; the googleapis client handles retry, error parsing, and API key injection correctly. |
-
-**What to use from googleapis:** Only `youtube` service via `google.youtube('v3')`. Do not pull in the full client — tree-shaking doesn't apply to CJS but the import is scoped correctly if you only instantiate the youtube service.
-
-**Confidence (googleapis version):** LOW — version number is a guess. Run `npm view googleapis version` to get current. The API pattern (`google.youtube('v3').search.list(...)`) is stable across versions.
-
-### AI Integration
-
-| Technology | Version (verify) | Purpose | Why |
-|------------|-----------------|---------|-----|
-| `@anthropic-ai/sdk` | ^0.27.x | Claude API calls + streaming | Official SDK. Handles auth headers, retry on 529 (overload), and exposes a clean streaming interface via `stream()`. Do NOT use raw fetch to `api.anthropic.com` — the SDK's streaming abstraction is essential for the SSE pipeline. |
-
-**Model to use:** `claude-sonnet-4-5` as specified in PROJECT.md. At call time, always pass model as a config constant so you can update it in one place.
-
-**Confidence (@anthropic-ai/sdk version):** LOW — SDK was at ~0.24-0.27 range as of my cutoff. Run `npm view @anthropic-ai/sdk version` to confirm current. The API surface (`client.messages.create(...)`, `client.messages.stream(...)`) is stable.
-
-### Configuration
-
-| Technology | Version (verify) | Purpose | Why |
-|------------|-----------------|---------|-----|
-| `dotenv` | ^16.x | Load `.env` into `process.env` | Zero-dependency, standard pattern for local dev. Call `dotenv.config()` at the top of `server.js` before any other imports that read env vars. |
-
-**Pattern:** One `.env` file, two keys:
-```
-YOUTUBE_API_KEY=...
-ANTHROPIC_API_KEY=...
-```
-Never commit `.env`. Add `.env` to `.gitignore` on day one.
-
-**Confidence (dotenv):** HIGH — dotenv 16.x has been stable for years. The API has not changed.
-
-### HTTP / SSE
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Native `http` / Express response object | Built-in | SSE for pipeline progress | No extra library needed. Express's `res.write()` is sufficient for SSE. See SSE pattern below. |
-| `cors` | ^2.x | Allow browser requests from file:// or different port | Simple middleware. Only needed if you ever open `index.html` directly as a file rather than serving it through Express. If Express serves `index.html`, skip cors entirely. |
-
-**Confidence (cors):** HIGH — cors 2.x has been stable for years.
-
-### Dev Tooling
-
-| Technology | Version (verify) | Purpose | Why |
-|------------|-----------------|---------|-----|
-| `nodemon` | ^3.x | Auto-restart server on file change | Standard local dev tool. Only in devDependencies. |
-
-**Confidence (nodemon):** MEDIUM — nodemon 3.x was current as of my cutoff. Verify.
+**Do NOT install:** `@clerk/clerk-sdk-node` — deprecated, removed from Clerk docs as of 2025.
 
 ---
 
-## What NOT to Use
+### Auth — Frontend (Vanilla JS)
 
-| Category | Avoid | Why |
-|----------|-------|-----|
-| YouTube client | `ytdl-core`, `youtube-dl` wrappers | These are for video download, not API queries. Wrong tool. |
-| YouTube transcript | `youtube-transcript` npm package | Unmaintained, breaks frequently as YouTube changes internal endpoints. Use the captions API directly (see pattern below). |
-| AI streaming | Raw `fetch` to Anthropic API | The SDK's streaming abstraction handles chunked SSE parsing, error recovery, and token counting. Don't rebuild it. |
-| Frontend | React, Vue, any framework | PROJECT.md explicitly forbids this. Vanilla JS + one HTML file. |
-| HTTP client | `axios`, `node-fetch` | Node 18+ has native `fetch`. Use it. The googleapis and anthropic SDKs manage their own HTTP internally. |
-| Process manager | `pm2` | Overkill for a local tool. `nodemon` for dev, `node server.js` for production. |
-| Environment | `config` npm package, `dotenv-safe` | dotenv alone is sufficient for two keys. |
+| Library | How to load | Purpose | Why |
+|---------|------------|---------|-----|
+| `@clerk/clerk-js` (CDN) | Script tag via Clerk's own CDN | Sign-in/sign-up UI components, session token for API calls | No npm install needed. Clerk's CDN (`https://<FRONTEND_API_URL>/npm/@clerk/clerk-js@latest/dist/clerk.browser.js`) always serves the latest compatible build. Current npm version is `6.6.0`. Exposes `window.Clerk` after `await Clerk.load()`. Provides prebuilt `<SignIn>` / `<SignUp>` mount points and `Clerk.session.getToken()` for including the session JWT in fetch headers to the Express backend. |
 
----
+**Integration point:** `index.html` — one script tag loads ClerkJS from CDN using the `data-clerk-publishable-key` attribute. No build step. Auth state drives UI gating (show/hide generate form, upgrade prompts) in vanilla JS.
 
-## YouTube Captions / Transcript Fetching
-
-This is the trickiest part of the stack. Two options exist:
-
-### Option A: YouTube Data API v3 Captions Endpoint (AVOID for this use case)
-
-`youtube.captions.list()` and `youtube.captions.download()` — the download endpoint requires **OAuth 2.0**, not an API key. Since this app has no auth, this endpoint is **not usable**.
-
-**Confidence:** HIGH — this is clearly documented in YouTube API docs.
-
-### Option B: Undocumented Timedtext Endpoint (USE THIS)
-
-YouTube serves auto-generated and manual captions via a public (no auth) endpoint:
-
-```
-https://www.youtube.com/api/timedtext?v={VIDEO_ID}&lang=en&fmt=json3
-```
-
-**Parameters:**
-- `v` — video ID
-- `lang` — language code (use `en` as default, fall back to first available)
-- `fmt` — format. Use `json3` (structured JSON with timestamps) or `srv1` (simple XML). `json3` is easiest to parse.
-- `tlang` — auto-translate to a language if no native captions exist (use sparingly)
-
-**How to discover available captions for a video:**
-
-```
-https://www.youtube.com/api/timedtext?v={VIDEO_ID}&type=list
-```
-
-Returns XML listing available caption tracks. Parse the `lang_code` attributes to find what's available before attempting download.
-
-**Fetch pattern (Node.js native fetch):**
-
-```javascript
-async function fetchTranscript(videoId) {
-  // 1. Get available tracks
-  const listUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&type=list`;
-  const listRes = await fetch(listUrl);
-  const listXml = await listRes.text();
-  // Parse for lang_code="en" or first available track
-  // ...
-
-  // 2. Fetch the transcript
-  const transcriptUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`;
-  const res = await fetch(transcriptUrl, {
-    headers: { 'Accept-Language': 'en-US,en;q=0.9' }
+**Pattern:**
+```html
+<script
+  async
+  crossorigin="anonymous"
+  data-clerk-publishable-key="pk_live_..."
+  src="https://<FRONTEND_API_URL>/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+  type="text/javascript"
+></script>
+<script>
+  window.addEventListener('load', async () => {
+    await Clerk.load();
+    // Clerk.user, Clerk.session, Clerk.mountSignIn('#sign-in') etc.
   });
-  if (!res.ok) return null; // fall back to video description
-
-  const data = await res.json();
-  // data.events is an array of { tStartMs, dDurationMs, segs: [{ utf8 }] }
-  const text = data.events
-    .filter(e => e.segs)
-    .flatMap(e => e.segs.map(s => s.utf8))
-    .join(' ')
-    .replace(/\n/g, ' ');
-  return text;
-}
+</script>
 ```
-
-**Caveats:**
-- This endpoint is undocumented and could break without notice. The PROJECT.md already accounts for fallback to video description.
-- Auto-generated captions exist for most English videos but quality varies.
-- Some videos have captions disabled entirely — always handle null/empty response.
-- YouTube occasionally returns a 200 with empty body for videos with no captions. Check `data.events` before accessing.
-- User-Agent header is generally not required but adding a browser-like Accept-Language header improves reliability.
-
-**Confidence:** MEDIUM — this endpoint has been used reliably by the open-source community for years (e.g., the `youtube-transcript` package uses it internally). But it is undocumented and carries breakage risk.
-
-### Fallback Strategy (Required)
-
-```javascript
-async function getVideoText(video) {
-  const transcript = await fetchTranscript(video.id);
-  if (transcript && transcript.length > 200) {
-    return { source: 'transcript', text: transcript };
-  }
-  // Fall back to description
-  return { source: 'description', text: video.snippet.description || '' };
-}
-```
-
-Always pass `source` to Claude so it can calibrate question quality accordingly.
 
 ---
 
-## SSE Pattern for Pipeline Progress
+### Webhooks — Billing Lifecycle
 
-The loading pipeline has multiple stages (query generation, YouTube search, scoring, transcript fetch, Claude curation, question generation). Use Server-Sent Events to stream progress to the frontend.
+| Library | Version | Purpose | Why |
+|---------|---------|---------|-----|
+| `svix` | `^1.90.0` | Verify Clerk webhook signatures on billing events | Clerk's webhook delivery is powered by Svix. The `svix` npm package is Clerk's own recommended method for verifying webhook signatures (`new Webhook(secret).verify(rawBody, headers)`). Required for idempotent billing webhook handler. Tiny package — no significant dependency footprint. Alternative is manual HMAC verification but Svix handles edge cases (replay attacks, timing attacks). |
 
-### Server-Side (Express)
+**Integration point:** New `POST /api/webhooks/clerk` route in `server.js`. Must receive raw body (use `express.raw({ type: 'application/json' })` on that route specifically, not `express.json()`). Handles `subscription.created`, `subscription.updated`, `subscription.deleted` events to keep Supabase user plan state in sync.
 
-```javascript
-app.get('/api/generate', async (req, res) => {
-  // SSE headers — must be set before any write
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders(); // flush the 200 + headers immediately
-
-  const send = (event, data) => {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-  };
-
-  try {
-    send('progress', { step: 'queries', message: 'Generating search queries...' });
-    const queries = await generateQueries(subject, level); // Claude call
-
-    send('progress', { step: 'search', message: 'Searching YouTube...' });
-    const videos = await searchYouTube(queries);
-
-    send('progress', { step: 'scoring', message: 'Scoring videos...' });
-    const scored = scoreVideos(videos, level);
-
-    send('progress', { step: 'transcripts', message: 'Fetching transcripts...' });
-    const withText = await fetchTranscripts(scored.slice(0, 12));
-
-    send('progress', { step: 'curation', message: 'Curating with Claude...' });
-    const course = await curateCourse(withText, subject, level);
-
-    send('complete', { course });
-  } catch (err) {
-    send('error', { message: err.message });
-  } finally {
-    res.end();
-  }
-});
-```
-
-### Client-Side (Vanilla JS)
-
-```javascript
-const evtSource = new EventSource(`/api/generate?subject=${encodeURIComponent(subject)}&level=${level}`);
-
-evtSource.addEventListener('progress', (e) => {
-  const { step, message } = JSON.parse(e.data);
-  updateProgressUI(step, message);
-});
-
-evtSource.addEventListener('complete', (e) => {
-  const { course } = JSON.parse(e.data);
-  evtSource.close();
-  renderCourse(course);
-});
-
-evtSource.addEventListener('error', (e) => {
-  evtSource.close();
-  showError(JSON.parse(e.data).message);
-});
-```
-
-**Important SSE decisions:**
-- `GET` not `POST` — `EventSource` only supports GET. Pass subject and level as query params.
-- `res.flushHeaders()` is critical — without it, Node.js buffers the response and the client gets nothing until the stream closes.
-- No SSE library needed. Express's raw `res.write()` is sufficient.
-- The `event:` line is required for named event listeners. Without it, everything fires as `message`.
-
-**Confidence:** HIGH — this is a well-established pattern in Express. No external library needed.
+**Critical:** Webhook handler must be idempotent — Svix retries on failure. Check if event has already been processed before writing to Supabase.
 
 ---
 
-## Alternatives Considered
+### Database
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Framework | Express 4.x | Fastify | Fastify has better performance but the ecosystem/examples for SSE are more mature in Express. For a local tool, performance is irrelevant. |
-| Framework | Express 4.x | Express 5.x | Express 5 adds async error propagation but requires path-to-regexp v8 which breaks many existing route patterns. No benefit here. |
-| YouTube client | googleapis | Raw fetch | Raw fetch means manually building URL params, handling API errors, and parsing quota headers. googleapis is ~200KB but saves significant boilerplate. |
-| Transcript | Timedtext endpoint | youtube-transcript npm | youtube-transcript is a thin wrapper around the same endpoint but is poorly maintained and adds a dependency for minimal benefit. |
-| Config | dotenv | Hardcoded values | Never. |
-| Config | dotenv | `process.env` only (no dotenv) | Node does not auto-load .env files. dotenv.config() is required. |
-| Streaming | SSE | WebSocket | WebSockets require a handshake and a separate ws library. SSE is simpler for one-direction server→client streaming and works with native EventSource. |
+| Library | Version | Purpose | Why |
+|---------|---------|---------|-----|
+| `@supabase/supabase-js` | `^2.103.0` | Supabase Postgres client for user data, course history, cache, and subscription state | Official JS client. Works in Node.js server-side with the service role key (`SUPABASE_SERVICE_ROLE_KEY`) to bypass Row Level Security for server-controlled writes. Initialize with `createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })`. Provides `.from('table').select()/.insert()/.update()/.upsert()/.delete()` — no ORM, no query builder abstraction, just a thin wrapper over PostgREST. Current version 2.103.0 (April 2026). |
+
+**Integration point:** New `db.js` module at project root. Exports a single initialized Supabase client. Imported by `server.js`, `sse.js`, and any module that reads/writes user data. The `cache.js` file-based cache is replaced in Phase 7 by queries in `db.js`.
+
+**Tables to create (in Supabase dashboard or migration SQL):**
+- `users` — clerk_user_id (PK), email, plan, created_at
+- `courses` — id, clerk_user_id (FK), subject, level, data (jsonb), created_at
+- `cache` — key (PK, md5 hash), data (jsonb), created_at (replaces .cache/ files)
+- `user_progress` — clerk_user_id, course_id, watched (jsonb), created_at
+
+**Do NOT use:** Supabase Auth — Clerk is handling auth. Use Supabase purely as a Postgres client. Do not call `supabase.auth.*` methods.
+
+---
+
+## Environment Variables Added in v2.0
+
+```
+# Clerk
+CLERK_SECRET_KEY=sk_live_...
+CLERK_PUBLISHABLE_KEY=pk_live_...        # served to frontend via Express (safe to expose)
+CLERK_WEBHOOK_SECRET=whsec_...           # from Clerk dashboard > Webhooks
+
+# Supabase
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJ...         # NEVER expose to frontend
+```
+
+**Pattern for serving publishable key to frontend:** Express route `GET /api/config` returns `{ publishableKey: process.env.CLERK_PUBLISHABLE_KEY }`. The frontend fetches this at load time and passes it to `Clerk.load({ publishableKey })`. This avoids hardcoding in index.html and keeps the build step-free vanilla JS architecture intact.
+
+---
+
+## Integration Points With Existing Architecture
+
+| Existing File | v2.0 Change |
+|---------------|-------------|
+| `server.js` | Add `clerkMiddleware()` as first middleware; add `requireAuth()` to protected routes; add `POST /api/webhooks/clerk`; add `GET /api/config`; import `db.js` |
+| `cache.js` | Unchanged in Phase 6 auth phase; replaced in Phase 7 when Supabase cache table is built |
+| `sse.js` | `courseStreamHandler` receives `clerkUserId` to save completed course to Supabase |
+| `index.html` | Add Clerk CDN script tag; fetch `/api/config` for publishable key; gate generate form on `Clerk.user`; include `Authorization: Bearer <token>` in EventSource workaround (see pitfalls) |
+| **New: `db.js`** | Supabase client + query helpers (getCourse, saveCourse, getCache, setCache, getUser, upsertUser) |
+| **New: `auth.js`** | Clerk middleware export + `requireAuth` + `requirePlan(planSlug)` helper |
+
+---
+
+## What NOT to Add
+
+| Category | Do Not Add | Reason |
+|----------|-----------|--------|
+| Payment | `stripe` npm package | Clerk Billing handles Stripe integration natively. Adding stripe directly creates duplicate webhook surfaces and split ownership of subscription state. |
+| ORM | `prisma`, `drizzle`, `typeorm`, `knex` | PROJECT.md explicitly forbids ORMs. `@supabase/supabase-js` is sufficient — it wraps PostgREST which handles SQL safely. |
+| Frontend framework | React, Vue, Svelte | PROJECT.md forbids. Clerk's vanilla JS CDN bundle provides all needed auth UI. |
+| Session store | `express-session`, `connect-pg-simple` | Clerk handles sessions via JWT. No server-side session storage needed. |
+| Email | `nodemailer`, `resend`, `sendgrid` | Clerk handles transactional auth emails (sign up, password reset) natively. |
+| Auth | `passport`, `jsonwebtoken`, custom JWT | Clerk replaces all of this. Manual JWT verification is unnecessary — `clerkMiddleware()` does it. |
+| Migration tool | `db-migrate`, `flyway` | Supabase dashboard or single SQL files are sufficient for this project's schema complexity. No migration framework needed. |
+| HTTP client | `axios`, `node-fetch` | Node 18+ native fetch is already used throughout v1.0. Do not add HTTP client libraries. |
+
+---
+
+## Key Version Constraints
+
+| Constraint | Detail |
+|-----------|--------|
+| Express pinned at `^4.18` | Express 5 has breaking routing changes. Do not upgrade. `clerkMiddleware()` is tested and documented for Express 4.x. |
+| `@clerk/clerk-sdk-node` is EOL | If it appears in any examples, ignore it. The correct package is `@clerk/express`. |
+| Raw body for webhooks | The Clerk webhook route (`POST /api/webhooks/clerk`) must NOT go through `express.json()`. Register `express.raw({ type: 'application/json' })` on that specific route only, before the handler. Otherwise Svix signature verification fails. |
+| Supabase service role key server-only | `SUPABASE_SERVICE_ROLE_KEY` must never be sent to the browser or returned in any API response. The frontend has no direct Supabase access. |
+| Clerk session JWT for API auth | `EventSource` (used for SSE) does not support custom headers, so the session token cannot be passed as `Authorization: Bearer`. Workaround: pass a short-lived token as a query param, or switch the generate endpoint to a two-step flow (POST to initiate → GET stream with a one-time token). This is a known pitfall — Phase 6 needs to decide the approach explicitly. |
 
 ---
 
 ## Installation
 
 ```bash
-# Initialize package.json
-npm init -y
-
-# Production dependencies
-npm install express googleapis @anthropic-ai/sdk dotenv
-
-# Optional: cors (only needed if not serving index.html through Express)
-# npm install cors
-
-# Dev dependencies
-npm install -D nodemon
+# v2.0 additions only
+npm install @clerk/express @supabase/supabase-js svix
 ```
 
-**package.json scripts:**
+No dev-only additions needed for these libraries.
+
+**Updated package.json dependencies after v2.0:**
 ```json
 {
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
-  },
-  "type": "module"
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
+    "@clerk/express": "^2.0.7",
+    "@supabase/supabase-js": "^2.103.0",
+    "dotenv": "^16",
+    "express": "^4.18",
+    "svix": "^1.90.0"
+  }
 }
-```
-
-**Note on `"type": "module"`:** Using ESM (`import`/`export`) rather than CJS (`require`) is recommended for new Node.js projects in 2025. googleapis and @anthropic-ai/sdk both support ESM. If ESM feels unfamiliar, CJS works fine — just omit `"type": "module"` and use `require()`.
-
----
-
-## server.js Entry Point Pattern
-
-```javascript
-import 'dotenv/config'; // must be first
-import express from 'express';
-import { google } from 'googleapis';
-import Anthropic from '@anthropic-ai/sdk';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __dirname = dirname(fileURLToPath(import.meta.url)); // ESM equivalent of __dirname
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-const youtube = google.youtube({ version: 'v3', auth: process.env.YOUTUBE_API_KEY });
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-app.use(express.json());
-app.use(express.static(__dirname)); // serves index.html at /
-
-// Routes here...
-
-app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
 ```
 
 ---
 
 ## Sources
 
-- Express documentation: https://expressjs.com/en/4x/api.html
-- googleapis npm package: https://www.npmjs.com/package/googleapis
-- @anthropic-ai/sdk npm: https://www.npmjs.com/package/@anthropic-ai/sdk
-- Anthropic Node SDK streaming docs: https://github.com/anthropic-sdk/sdk-node
-- YouTube Data API v3 Captions: https://developers.google.com/youtube/v3/docs/captions
-- YouTube timedtext endpoint: undocumented, community-verified
-- dotenv: https://www.npmjs.com/package/dotenv
-- MDN EventSource: https://developer.mozilla.org/en-US/docs/Web/API/EventSource
-
-**Version verification required before writing package.json:**
-```bash
-npm view express version
-npm view @anthropic-ai/sdk version
-npm view googleapis version
-npm view dotenv version
-npm view nodemon version
-```
+- [@clerk/express on npm](https://www.npmjs.com/package/@clerk/express) — version 2.0.7, confirmed April 2026
+- [Clerk Express SDK docs](https://clerk.com/docs/reference/express/overview)
+- [Clerk Express Quickstart](https://clerk.com/docs/expressjs/getting-started/quickstart)
+- [Clerk clerkMiddleware() reference](https://clerk.com/docs/reference/express/clerk-middleware)
+- [Clerk requireAuth() reference](https://clerk.com/docs/reference/express/require-auth)
+- [Clerk getAuth() reference](https://clerk.com/docs/reference/express/get-auth)
+- [Clerk Billing for B2C](https://clerk.com/docs/nextjs/guides/billing/for-b2c) — has() pattern
+- [Clerk webhook docs](https://clerk.com/docs/guides/development/webhooks/overview)
+- [Clerk Billing webhook events](https://clerk.com/docs/guides/development/webhooks/billing)
+- [@clerk/clerk-js on npm](https://www.npmjs.com/package/@clerk/clerk-js) — version 6.6.0
+- [Clerk JavaScript Quickstart (vanilla)](https://clerk.com/docs/quickstarts/javascript)
+- [@supabase/supabase-js on npm](https://www.npmjs.com/package/@supabase/supabase-js) — version 2.103.0, confirmed April 2026
+- [Supabase JavaScript reference — initializing](https://supabase.com/docs/reference/javascript/initializing)
+- [Supabase server-side admin client pattern](https://github.com/orgs/supabase/discussions/1284)
+- [svix on npm](https://www.npmjs.com/package/svix) — version 1.90.0, confirmed April 2026
+- [Svix webhook verification docs](https://docs.svix.com/receiving/verifying-payloads/how)
+- [Railway Express deployment guide](https://docs.railway.com/guides/express)
