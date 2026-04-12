@@ -54,19 +54,19 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| AUTH-05 | — | Pending |
-| PERSIST-01 | — | Pending |
-| PERSIST-02 | — | Pending |
-| PERSIST-03 | — | Pending |
-| PERSIST-04 | — | Pending |
-| BILL-01 | — | Pending |
-| BILL-02 | — | Pending |
-| BILL-03 | — | Pending |
-| BILL-04 | — | Pending |
-| UI-01 | — | Pending |
-| UI-02 | — | Pending |
-| UI-03 | — | Pending |
+| AUTH-01 | Phase 6 | Pending |
+| AUTH-02 | Phase 6 | Pending |
+| AUTH-03 | Phase 6 | Pending |
+| AUTH-04 | Phase 6 | Pending |
+| AUTH-05 | Phase 6 | Pending |
+| PERSIST-01 | Phase 7 | Pending |
+| PERSIST-02 | Phase 7 | Pending |
+| PERSIST-03 | Phase 7 | Pending |
+| PERSIST-04 | Phase 7 | Pending |
+| BILL-01 | Phase 8 | Pending |
+| BILL-02 | Phase 8 | Pending |
+| BILL-03 | Phase 8 | Pending |
+| BILL-04 | Phase 8 | Pending |
+| UI-01 | Phase 9 | Pending |
+| UI-02 | Phase 9 | Pending |
+| UI-03 | Phase 9 | Pending |
