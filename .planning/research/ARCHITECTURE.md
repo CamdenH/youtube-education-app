@@ -1,312 +1,549 @@
----
-title: SaaS Integration Architecture
-type: integration-research
-milestone: v2.0 SaaS
-researched: 2026-04-12
-confidence: HIGH
----
-
-# SaaS Integration Architecture
+# Architecture Patterns
 
 **Project:** YouTube Learning Curator
-**Milestone:** v2.0 SaaS — Clerk auth, Supabase persistence, Clerk Billing, marketing landing page
-**Researched:** 2026-04-12
+**Researched:** 2026-03-18
+**Confidence:** HIGH (SSE/Express patterns from official docs; pipeline design from first principles given constraints)
 
 ---
 
-## Context
+## Recommended Architecture
 
-The v1.0 MVP is a flat-file Node.js/Express app. All modules live at root. The server serves `index.html` from root via `express.static(__dirname)`, so the frontend and backend are same-origin in all environments. This is the critical architectural fact that shapes how Clerk auth works with SSE.
-
----
-
-## New Files
-
-### `auth.js` — Clerk middleware + user helpers
-
-Exports:
-- `requireUser(req, res, next)` — middleware that calls `getAuth(req)` and returns 401 if no userId. Use on every protected route except the webhook route.
-- `getUserId(req)` — helper that returns `getAuth(req).userId`. Zero-cost convenience wrapper, not an abstraction layer.
-
-Why a separate file: `server.js` already has 136 lines; Clerk setup (env check, middleware registration) warrants a dedicated module. Mirrors the convention of `transcript.js` and `cache.js` as single-purpose modules.
-
-Key implementation details:
-- `clerkMiddleware()` is registered globally in `server.js` (before routes), not inside `auth.js`. `auth.js` only exports route-level helpers.
-- The webhook route must be explicitly excluded from `requireUser` since Clerk's `verifyWebhook` does its own signature check and the route is called by Clerk's servers, not authenticated users.
-- `getAuth(req)` is available after `clerkMiddleware()` runs. It reads the `__session` cookie (same-origin) or the `Authorization: Bearer <token>` header (cross-origin). Since this app serves frontend and API from the same origin on Railway, cookies work automatically with EventSource — no token-in-URL kludge needed.
-
-### `db.js` — Supabase client + all queries
-
-Exports a single `supabase` client (service role key) and named query functions:
-- `upsertUser({ clerkId, email })` — called from webhook on `user.created` / `user.updated`
-- `deleteUser(clerkId)` — called from webhook on `user.deleted`
-- `saveCourse({ clerkId, subject, skillLevel, courseJson })` — persists a completed course
-- `getCourseHistory(clerkId, limit)` — returns last N courses for a user
-- `getCachedSearch(hash)` — replaces `cacheGet` for search results
-- `setCachedSearch(hash, data)` — replaces `cacheSet` for search results
-- `getCachedVideo(videoId)` — replaces `cacheGet` for video stats
-- `setCachedVideo(videoId, data)` — replaces `cacheSet` for video stats
-- `getMonthlyUsage(clerkId)` — returns course generation count for current calendar month
-- `incrementUsage(clerkId)` — increments the monthly counter
-
-The client uses `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`. The service role key bypasses RLS entirely, which is appropriate here: the server is the only writer, all user-scoping is enforced by passing `clerkId` explicitly in every query, and there is no Supabase client in the browser.
-
-Do NOT create a second anon-key client. All database access goes through one service-role client in `db.js`.
-
-### `webhooks.js` — Clerk webhook handler (extracted from server.js)
-
-Exported as an Express router or a single handler function, mounted in `server.js` at `POST /api/webhooks/clerk`.
-
-Responsibilities:
-- Verify signature with `verifyWebhook(req)` from `@clerk/express/webhooks`
-- Handle `user.created`, `user.updated`, `user.deleted` events (sync users table in Supabase)
-- Handle `subscription.*` billing events (update subscription tier in users table)
-- Return 200 on success, 400 on verification failure, 500 on DB write failure
-- All event types must be idempotent: upsert not insert, ignore unknown event types
-
-Why a separate file: the webhook route requires `express.raw({ type: 'application/json' })` applied locally, which conflicts with the global `express.json()` middleware in `server.js`. Isolating it in a separate module with its own local `express.raw()` makes the conflict explicit and contained.
-
-### `landing.html` — Marketing landing page
-
-Static HTML served at `GET /`. The current `index.html` (the app) moves to `GET /app` or is served at `/app.html`.
-
-Alternatively: keep `index.html` as the app at `GET /app`, make `landing.html` the root, and update `express.static` to serve both. No build step, no framework. Vanilla HTML/CSS/JS only.
-
-Contains: hero, feature highlights (scoring algorithm, Claude curation, module structure), pricing tier comparison, CTA (sign up with Clerk), and a footer.
-
----
-
-## Modified Files (per file: what changes and why)
-
-### `server.js`
-
-1. **Add `clerkMiddleware()`** as the first `app.use()` call, before `express.json()` and `express.static()`. This is required by Clerk — it must run before any route.
-2. **Register webhook route before `express.json()`**: mount `POST /api/webhooks/clerk` with `express.raw({ type: 'application/json' })` immediately after `clerkMiddleware()`, before the global `app.use(express.json())`. Order matters: `express.json()` would pre-parse the body and break webhook signature verification.
-3. **Protect `/api/course-stream`** by adding `requireUser` middleware: `app.get('/api/course-stream', requireUser, async (req, res) => ...)`. The user's `clerkId` is then available via `getUserId(req)` inside the handler.
-4. **Protect `/api/hints`** the same way: `app.post('/api/hints', requireUser, async (req, res) => ...)`.
-5. **Pass `clerkId` to `courseStreamHandler`**: the handler needs it to save the course and check/increment usage. Options: attach to `req` in the route handler before delegating, or thread `userId` as a parameter. Attach to `req` as `req.userId = getUserId(req)` before calling `courseStreamHandler(req, res)` — clean, no signature change to `sse.js`.
-6. **Add usage gate** before calling `courseStreamHandler`: check `getMonthlyUsage(req.userId)` and compare against the tier limit derived from `getAuth(req).has({ plan: 'pro' })`. If exceeded, return 402 JSON before opening the SSE stream.
-7. **Add static file route for landing page**: if landing.html is at root, no change needed since `express.static(__dirname)` already serves it. If routing `/` to landing and `/app` to the app UI requires a specific `sendFile` route, add it after `express.static`.
-
-### `sse.js`
-
-Minimal changes. `courseStreamHandler` needs `clerkId` to save the completed course. The cleanest approach is to read `req.userId` (attached by `server.js`) inside `courseStreamHandler` after the `assembleCourse` step and call `saveCourse(...)`. The function signature does not change.
-
-What changes:
-- After the `course_assembled` event fires successfully, call `db.saveCourse({ clerkId: req.userId, subject, skillLevel, courseJson: courseResult })`. This is a fire-and-forget write (non-awaited) with a caught error that logs but does not surface to the user. The SSE stream has already ended with a successful event.
-- Import `db.js` at the top of `sse.js`.
-
-### `cache.js`
-
-In Phase 7, `cacheGet` and `cacheSet` calls in `youtube.js` and `transcript.js` are replaced with the corresponding `db.js` functions. `cache.js` itself is deleted or kept as a dev fallback.
-
-In Phase 6 (auth), `cache.js` is unchanged. The file-based cache continues to work in dev and on Railway until Phase 7 replaces it. Do not mix migrations.
-
-### `youtube.js`
-
-No changes in Phase 6. In Phase 7: replace `cacheGet`/`cacheSet` calls with `db.getCachedSearch`/`db.setCachedSearch` and `db.getCachedVideo`/`db.setCachedVideo`.
-
-### `transcript.js`
-
-No changes in Phase 6. In Phase 7: replace file-based cache calls with db equivalents.
-
-### `index.html`
-
-Changes span multiple phases:
-
-Phase 6 (auth):
-- Add Clerk frontend JS (ClerkJS via CDN or `@clerk/clerk-js` script tag). Clerk recommends the CDN script tag for non-framework apps.
-- Wire `SignIn`/`SignUp` components or redirect to Clerk Hosted Pages. Clerk's hosted pages are the simplest path for a vanilla JS app — no component mounting needed, just redirect to `https://accounts.<your-domain>.com/sign-in`.
-- On page load: initialize Clerk, check `clerk.user`. If null, redirect to sign-in. If authenticated, proceed.
-- Replace `localStorage` course history display with a call to `GET /api/courses` (new route serving Supabase history).
-- Remove `localStorage` watched-state management in Phase 7.
-
-Phase 8 (billing):
-- Add plan-gated UI: show upgrade prompt when free-tier 402 response is received from `/api/course-stream`.
-- Add billing management link (Clerk's hosted billing portal via `clerk.openPlanSelection()` or a redirect to Clerk Billing portal URL).
-
-Phase 9 (SaaS UI):
-- The marketing landing page (`landing.html`) replaces or precedes the app UI.
-- Onboarding flow (post-signup modal or dedicated page).
-
----
-
-## Data Flow Changes
-
-### Before (v1.0)
+This is a single-process Node.js app. There is no database, no frontend framework, and no build step. The entire server is `server.js`; the entire UI is `index.html`. The complexity lives in one place: the five-step AI pipeline that runs on every course generation request.
 
 ```
-Browser (index.html)
-  --> GET /api/course-stream?subject=X&skill_level=Y  (no auth)
-  --> SSE events stream back
-  --> Course stored in localStorage
-```
-
-### After (v2.0)
-
-```
-Browser (index.html, ClerkJS loaded)
-  --> Clerk session cookie __session sent automatically (same-origin)
-
-  --> GET /api/course-stream?subject=X&skill_level=Y
-        clerkMiddleware() reads __session cookie
-        requireUser() checks userId, returns 401 if missing
-        usage gate checks monthly count vs tier limit, returns 402 if exceeded
-        courseStreamHandler runs pipeline
-        after course_assembled: db.saveCourse() fire-and-forget
-        db.incrementUsage() fire-and-forget
-  --> SSE events stream back (unchanged format)
-  --> Course displayed (unchanged rendering)
-  --> Course history loaded from GET /api/courses (new route, Supabase)
-
-  --> POST /api/hints  (same auth flow, requireUser middleware)
-  --> POST /api/webhooks/clerk  (Clerk servers only, verifyWebhook signature check)
-```
-
-### SSE + Auth: The Same-Origin Solution
-
-The browser's native `EventSource` API cannot send custom headers (Authorization: Bearer). This is a known W3C spec limitation, not a bug.
-
-This app avoids the problem entirely: Express serves `index.html` from the same origin as the API. Clerk's `clerkMiddleware()` reads the `__session` cookie automatically on same-origin requests. EventSource sends cookies by default for same-origin URLs. No token-in-query-param workaround is needed.
-
-If the app ever moves to a CDN-hosted frontend on a different domain, this changes — the SSE endpoint would need a short-lived token passed as a query param (acceptable for same-origin but logged; not acceptable cross-origin) or a pre-flight handshake.
-
-For v2.0 on Railway (frontend and API same domain), same-origin cookies are the correct and secure approach.
-
-### Webhook Data Flow
-
-```
-Clerk servers
-  --> POST /api/webhooks/clerk
-        express.raw() preserves body for signature verification
-        verifyWebhook(req) checks svix-signature, svix-id, svix-timestamp headers
-        switch on evt.type:
-          user.created  --> db.upsertUser({ clerkId, email })
-          user.updated  --> db.upsertUser({ clerkId, email })
-          user.deleted  --> db.deleteUser(clerkId)
-          subscription.* --> db.updateSubscription({ clerkId, plan, status })
-        return 200
+index.html (browser)
+  |
+  |-- POST /api/generate  ──────────────────────────────────────────────┐
+  |                                                                       |
+  |-- GET  /api/generate/stream?jobId=X (SSE)  <── progress events ──   |
+  |                                                                       |
+  |-- POST /api/hints  (lazy, per-video)                                 |
+  |                                                                       |
+  |-- GET  /  (serves index.html)                                        |
+                                                                          |
+server.js                                                                 |
+  ├── Static file serving (GET /)                                        |
+  ├── Route: POST /api/generate  ──── launches pipeline job ────────────┘
+  ├── Route: GET  /api/generate/stream  ──── SSE progress stream
+  ├── Route: POST /api/hints  ──── lazy hint generation
+  │
+  ├── Pipeline Orchestrator  (the heart of server.js)
+  │   ├── Step 1: generateSearchQueries()   [Claude]
+  │   ├── Step 2: searchYouTube()           [YouTube API]
+  │   ├── Step 3: scoreVideos()             [pure JS scoring + Claude channel rating]
+  │   ├── Step 4: fetchTranscripts()        [YouTube captions API, fallback: description]
+  │   └── Step 5: assembleCourse()          [Claude curation + module structure + questions]
+  │
+  ├── YouTube API Client  (thin wrapper over youtube-search-api / googleapis)
+  ├── Anthropic Client    (thin wrapper over @anthropic-ai/sdk)
+  └── Job Store           (in-memory Map: jobId → { status, events[], result })
 ```
 
 ---
 
-## Database Schema
+## Component Boundaries
 
-Two tables are sufficient for v2.0. No ORM. Raw SQL via Supabase client's `.from().select()` / `.rpc()` or direct Postgres queries via `pg`.
-
-### `users`
-```sql
-CREATE TABLE users (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  clerk_id     TEXT NOT NULL UNIQUE,
-  email        TEXT,
-  plan         TEXT NOT NULL DEFAULT 'free',  -- 'free' | 'pro' | 'power'
-  created_at   TIMESTAMPTZ DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### `courses`
-```sql
-CREATE TABLE courses (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  subject      TEXT NOT NULL,
-  skill_level  TEXT NOT NULL,
-  course_json  JSONB NOT NULL,
-  created_at   TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX courses_user_id_created_at ON courses(user_id, created_at DESC);
-```
-
-### `cache`
-```sql
-CREATE TABLE cache (
-  key          TEXT PRIMARY KEY,   -- MD5 hash, same as current file cache keys
-  data         JSONB NOT NULL,
-  created_at   TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### `usage`
-```sql
-CREATE TABLE usage (
-  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  month        DATE NOT NULL,      -- first day of month: DATE_TRUNC('month', NOW())
-  count        INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (user_id, month)
-);
-```
-
-RLS is disabled on all tables. The service role client bypasses RLS regardless, and user-scoping is handled in application code via `clerkId` parameters in every query function in `db.js`. This is the correct tradeoff for a Node-only backend with no browser-to-Supabase queries.
+| Component | Responsibility | Lives In | Communicates With |
+|-----------|---------------|----------|-------------------|
+| HTTP layer | Route definitions, req/res, SSE headers, error middleware | `server.js` top section | All others |
+| Job Store | In-memory map of active generation jobs; stores SSE event queue and final result | `server.js` (Map literal) | Pipeline Orchestrator, SSE route |
+| Pipeline Orchestrator | Sequential coordination of 5 steps; emits progress events; holds the job lifecycle | `server.js` middle section | YouTube Client, Anthropic Client, Job Store |
+| YouTube API Client | Wraps YouTube Data API v3 — search, video details, captions list + download | `server.js` bottom section (named functions) | Pipeline Orchestrator |
+| Anthropic Client | Wraps `@anthropic-ai/sdk` — sends prompts, handles retries, parses JSON responses | `server.js` bottom section (named functions) | Pipeline Orchestrator |
+| Scoring Engine | Pure deterministic function: video stats → 0–100 score | `server.js` bottom section | Pipeline Orchestrator (Step 3) |
+| SSE Route | Reads from Job Store event queue; streams events to browser; closes when job ends | `server.js` route handler | Job Store |
+| index.html | EventSource consumer; renders course; localStorage persistence; export/checkbox logic | `index.html` | HTTP layer (routes) |
 
 ---
 
-## Build Order
+## Data Flow
 
-Dependencies drive the order. Each phase must be fully complete before the next starts.
+### Course Generation Flow
 
-**Phase 6 — Auth**
-1. Add `CLERK_SECRET_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CLERK_WEBHOOK_SECRET` to `.env`
-2. `npm install @clerk/express @supabase/supabase-js`
-3. Create Supabase tables: `users`, `courses`, `usage` (run SQL in Supabase dashboard)
-4. Write `db.js`: client init + `upsertUser`, `deleteUser`, `saveCourse`, `getCourseHistory`, `getMonthlyUsage`, `incrementUsage`
-5. Write `auth.js`: export `requireUser` middleware and `getUserId` helper
-6. Write `webhooks.js`: `verifyWebhook` + event dispatch + db writes
-7. Modify `server.js`: register `clerkMiddleware()`, mount webhook route (with `express.raw()`), add `requireUser` to `/api/course-stream` and `/api/hints`, attach `req.userId`, add usage gate
-8. Modify `sse.js`: import `db`, call `db.saveCourse()` and `db.incrementUsage()` after `course_assembled`
-9. Modify `index.html`: add ClerkJS via CDN, auth check on load, redirect unauthenticated users, load course history from API
-10. Test: unauthenticated request to `/api/course-stream` returns 401; authenticated request succeeds; course appears in Supabase after generation; webhook events sync users table
+```
+Browser                     server.js                      External
+  |                              |                              |
+  |-- POST /api/generate ------->|                              |
+  |                              |-- generate jobId             |
+  |<-- { jobId } ---------------|                              |
+  |                              |                              |
+  |-- GET /api/generate/stream ->|                              |
+  |   (SSE connection open)      |                              |
+  |                              |                              |
+  |                              |== Step 1: generateSearchQueries ==|
+  |                              |-- prompt "generate 6-8 queries" ->|
+  |                              |<-- [ query1, query2, ... ] -------|
+  |<-- event: step { step: 1, msg: "Generating search queries..." }  |
+  |                              |                              |
+  |                              |== Step 2: searchYouTube ===========|
+  |                              |-- search(query1) ----------------->|
+  |                              |-- search(query2) ----------------->|  (parallel)
+  |                              |-- ... (all queries in parallel) -->|
+  |                              |<-- raw video results --------------|
+  |                              |-- getVideoDetails(ids) ----------->|
+  |                              |<-- stats (likes, views, duration)->|
+  |<-- event: step { step: 2, msg: "Searching YouTube..." }          |
+  |                              |                              |
+  |                              |== Step 3: scoreVideos ==============|
+  |                              |-- score each video (pure JS)       |
+  |                              |-- Claude: rate channel credibility ->|
+  |                              |<-- credibility scores --------------|
+  |                              |-- sort by final score              |
+  |                              |-- take top 12                      |
+  |<-- event: step { step: 3, msg: "Scoring videos..." }             |
+  |                              |                              |
+  |                              |== Step 4: fetchTranscripts =========|
+  |                              |-- captionsList(videoId) ----------->|
+  |                              |<-- caption track list --------------|
+  |                              |-- download caption track ---------->|
+  |                              |<-- transcript text -----------------|
+  |                              |   (fallback: use description)       |
+  |<-- event: step { step: 4, msg: "Fetching transcripts..." }       |
+  |                              |                              |
+  |                              |== Step 5: assembleCourse ============|
+  |                              |-- large curation prompt + videos -->|
+  |                              |<-- { modules[], per-video data } ---|
+  |<-- event: step { step: 5, msg: "Assembling course..." }          |
+  |                              |                              |
+  |<-- event: done { course: {...} }                                   |
+  |   (SSE connection closes)    |                              |
+```
 
-**Phase 7 — Persistence (cache migration)**
-1. Add `getCachedSearch`, `setCachedSearch`, `getCachedVideo`, `setCachedVideo` to `db.js`
-2. Modify `youtube.js`: swap `cacheGet`/`cacheSet` calls for db equivalents
-3. Modify `transcript.js`: swap `cacheGet`/`cacheSet` calls for db equivalents
-4. Add `GET /api/courses` route to `server.js` (returns `getCourseHistory` for authenticated user)
-5. Modify `index.html`: replace localStorage history with API call; remove localStorage watched-state; add per-course watched state to Supabase
-6. Delete or retire `cache.js` (keep if tests depend on it)
+### Hint Flow (lazy, post-generation)
 
-**Phase 8 — Billing**
-1. Define plans in Clerk Dashboard (free / pro / power), assign feature flags
-2. Add `db.updateSubscription()` to handle `subscription.*` webhook events
-3. Add `plan` update to `webhooks.js` event switch
-4. Modify usage gate in `server.js` to use `getAuth(req).has({ plan: 'pro' })` for tier limits
-5. Modify `index.html`: handle 402 response from SSE endpoint (show upgrade prompt); add billing portal link via Clerk JS `clerk.openPlanSelection()`
-
-**Phase 9 — SaaS UI**
-1. Write `landing.html`: hero, features, pricing table, CTA
-2. Configure `server.js` routing: `GET /` serves `landing.html`, `GET /app` serves `index.html` (or keep root as app and add landing as a separate route)
-3. Add onboarding flow to `index.html` (post-signup state detection via Clerk `clerk.user.createdAt` recency check)
+```
+Browser                     server.js                      Anthropic
+  |                              |                              |
+  |-- POST /api/hints ---------->|                              |
+  |   { videoId, transcript,     |-- prompt: "generate 3       |
+  |     questions[] }            |   hints for these 3 Qs" --->|
+  |                              |<-- { hints: [h1,h2,h3] } ---|
+  |<-- { hints: [h1,h2,h3] } ---|                              |
+```
 
 ---
 
-## Key Integration Decisions
+## How to Organize a Large server.js
 
-| Decision | Rationale |
-|----------|-----------|
-| `clerkMiddleware()` global, `requireUser` per-route | Clerk docs require `clerkMiddleware()` before all routes. Per-route `requireUser` gives explicit control over which routes are protected vs public (webhook, landing page, transcript). |
-| Same-origin cookie auth for SSE | Native `EventSource` cannot send Authorization headers. Same-origin deployment on Railway means `__session` cookie is sent automatically. No query-param token kludge needed. |
-| Webhook route uses `express.raw()` locally | Global `express.json()` pre-parses the body, breaking svix signature verification. Mount webhook handler before `express.json()` with a local `express.raw()` middleware. |
-| Service role key only (no anon key) | No browser-to-Supabase queries exist. Service role key in server env only. RLS would add complexity with no security benefit in this architecture. |
-| `req.userId` set in `server.js`, read in `sse.js` | Avoids changing `courseStreamHandler` signature. Clerk auth is a transport concern (HTTP layer), not a pipeline concern. |
-| Course save is fire-and-forget after `course_assembled` | SSE stream has already ended successfully. A DB write failure should log but not retroactively error a completed course for the user. |
-| Supabase `cache` table uses same MD5 key format | Preserves `queryHash()` from `cache.js`. No key format migration. Drop-in replacement for the file cache. |
-| Clerk Billing `has()` for plan gate | Plan claims are embedded in the session JWT by Clerk. No DB lookup needed for tier checks. `getAuth(req).has({ plan: 'pro' })` is synchronous after `clerkMiddleware()` runs. |
-| Users table synced via webhook, not on first request | Webhooks are the canonical sync pattern for Clerk + custom DB. Avoids race conditions and ensures the user row exists before any course is saved. |
-| `landing.html` as a separate file | Keeps `index.html` (the app) unchanged. No routing complexity. Express static serving handles both. |
+Keep everything in one file but use **section comments** as hard boundaries. The file has five zones, top-to-bottom, each doing one thing:
+
+```
+// ─── ZONE 1: INIT & CONFIG ──────────────────────────────────────
+// require(), dotenv, express(), constants, Job Store Map
+
+// ─── ZONE 2: HTTP ROUTES ─────────────────────────────────────────
+// GET /  →  serve index.html
+// POST /api/generate  →  start job, return jobId
+// GET  /api/generate/stream  →  SSE handler
+// POST /api/hints  →  lazy hint generation
+
+// ─── ZONE 3: PIPELINE ORCHESTRATOR ──────────────────────────────
+// async function runPipeline(jobId, subject, skillLevel)
+// Calls steps in sequence; calls emit(jobId, event) between steps
+
+// ─── ZONE 4: PIPELINE STEPS ──────────────────────────────────────
+// async function generateSearchQueries(subject, skillLevel)
+// async function searchYouTube(queries, skillLevel)
+// async function scoreVideos(videos, skillLevel)
+// async function fetchTranscripts(videos)
+// async function assembleCourse(videos, subject, skillLevel)
+
+// ─── ZONE 5: API CLIENTS ─────────────────────────────────────────
+// async function callClaude(prompt, systemPrompt)
+// async function youtubeSearch(query)
+// async function youtubeVideoDetails(ids)
+// async function youtubeCaptions(videoId)
+// function scoreVideo(video, skillLevel)  ← pure, synchronous
+```
+
+**When to split into separate files:** Only if `server.js` exceeds ~700 lines AND two developers are colliding in the same section. For a personal tool, that threshold will not be hit. The zone-comment approach is sufficient.
+
+---
+
+## Pipeline Orchestration Pattern
+
+### Job Store Pattern
+
+Use a plain `Map` as the in-memory job store. Every generation request creates a job entry. The SSE route reads from that entry.
+
+```javascript
+// Simple, effective for single-process personal tool
+const jobs = new Map();
+// jobs.get(jobId) = {
+//   status: 'running' | 'done' | 'error',
+//   events: [],          // buffered events for late SSE connections
+//   result: null,        // set when status === 'done'
+//   error: null,         // set when status === 'error'
+//   createdAt: Date.now()
+// }
+```
+
+**Why buffered events:** If the SSE connection opens after the pipeline has already emitted step 1, replay all buffered events so the browser is always current.
+
+### SSE Endpoint Pattern (Express)
+
+```javascript
+app.get('/api/generate/stream', (req, res) => {
+  const { jobId } = req.query;
+  const job = jobs.get(jobId);
+  if (!job) return res.status(404).end();
+
+  // SSE headers (verified against MDN spec)
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');   // disable nginx buffering if ever proxied
+  res.flushHeaders();
+
+  // Replay buffered events
+  job.events.forEach(evt => sendSSE(res, evt));
+
+  // If already done, close
+  if (job.status === 'done' || job.status === 'error') {
+    sendSSE(res, { type: 'done', data: job.result || { error: job.error } });
+    return res.end();
+  }
+
+  // Register this response as the live listener
+  job.listener = res;
+
+  // Clean up on client disconnect
+  req.on('close', () => {
+    job.listener = null;
+  });
+});
+
+function sendSSE(res, payload) {
+  // Use named events so the browser can addEventListener by type
+  res.write(`event: ${payload.type}\n`);
+  res.write(`data: ${JSON.stringify(payload.data)}\n\n`);
+}
+```
+
+### Pipeline Orchestrator Pattern
+
+```javascript
+async function runPipeline(jobId, subject, skillLevel) {
+  const emit = (type, data) => {
+    const evt = { type, data };
+    const job = jobs.get(jobId);
+    job.events.push(evt);               // buffer for replays
+    if (job.listener) sendSSE(job.listener, evt);
+  };
+
+  try {
+    emit('step', { step: 1, label: 'Generating search queries', total: 5 });
+    const queries = await generateSearchQueries(subject, skillLevel);
+
+    emit('step', { step: 2, label: 'Searching YouTube', total: 5 });
+    const videos = await searchYouTube(queries, skillLevel);
+
+    emit('step', { step: 3, label: 'Scoring videos', total: 5 });
+    const scored = await scoreVideos(videos, skillLevel);
+
+    emit('step', { step: 4, label: 'Fetching transcripts', total: 5 });
+    const withTranscripts = await fetchTranscripts(scored);
+
+    emit('step', { step: 5, label: 'Assembling course', total: 5 });
+    const course = await assembleCourse(withTranscripts, subject, skillLevel);
+
+    const job = jobs.get(jobId);
+    job.status = 'done';
+    job.result = course;
+    emit('done', { course });
+    if (job.listener) job.listener.end();
+
+  } catch (err) {
+    const job = jobs.get(jobId);
+    job.status = 'error';
+    job.error = err.message;
+    emit('error', { message: err.message });
+    if (job.listener) job.listener.end();
+  }
+}
+```
+
+**Key decision:** `POST /api/generate` responds immediately with `{ jobId }` and calls `runPipeline(jobId, ...)` without `await`. The pipeline runs asynchronously while the browser connects to the SSE stream. This avoids HTTP timeout issues on long-running pipelines (30–90 seconds is normal for 5 API steps).
+
+---
+
+## Claude Prompt Architecture
+
+Each Claude call should follow this structure:
+
+1. **System prompt:** Role + output format contract (always JSON)
+2. **User prompt:** Task data (subject, videos, transcripts, etc.)
+3. **Response:** Claude returns only valid JSON — no prose wrapping
+
+### Prompt 1: Search Query Generation
+
+```
+SYSTEM: You are an educational content strategist. You generate precise YouTube
+search queries to find the best instructional content for a given subject and skill level.
+Always respond with valid JSON matching the schema provided.
+
+USER: Generate 6-8 YouTube search queries to find educational videos about:
+Subject: {subject}
+Skill level: {skillLevel}
+
+Queries should vary in specificity — some broad, some narrow, some targeting
+specific subtopics. For "beginner" level, bias toward "introduction", "explained",
+"for beginners". For "advanced", bias toward "deep dive", "internals", "advanced".
+
+Respond with:
+{ "queries": ["query1", "query2", ...] }
+```
+
+### Prompt 2: Channel Credibility Rating (batched in Step 3)
+
+```
+SYSTEM: You are an academic quality assessor evaluating YouTube channels as
+educational sources. Rate channels by content depth and rigor, not popularity.
+Always respond with valid JSON matching the schema provided.
+
+USER: Rate the educational credibility (0–10) of each channel.
+Consider: institutional affiliation, content depth, pedagogical clarity, rigor.
+Do NOT boost score just for high subscriber count.
+
+Channels:
+{channels.map(c => `- ${c.name}: ${c.description}`).join('\n')}
+
+Respond with:
+{ "ratings": { "channelId": score, ... } }
+```
+
+### Prompt 3: Course Assembly + Curation (Step 5, largest prompt)
+
+```
+SYSTEM: You are an expert curriculum designer. You receive a list of scored
+YouTube videos and their transcripts, then:
+1. Reject any videos with poor educational quality (irrelevant, shallow, clickbait)
+2. Organize the remaining videos into 3–4 thematic modules
+3. Write a "why this video" blurb for each video
+4. Write 3 comprehension questions per video (one recall, one conceptual, one application)
+5. Flag any video whose content may be outdated (>3 years old for fast-moving topics)
+Always respond with valid JSON matching the schema provided.
+
+USER: Subject: {subject}
+Skill level: {skillLevel}
+
+Videos (top 12 by score):
+{videos.map(v => `
+ID: ${v.id}
+Title: ${v.title}
+Channel: ${v.channelName}
+Duration: ${v.duration}
+Score: ${v.score}
+Transcript excerpt: ${v.transcript.slice(0, 800)}
+`).join('\n---\n')}
+
+Respond with the schema:
+{
+  "modules": [
+    {
+      "title": "...",
+      "description": "...",
+      "learningProgression": "...",
+      "connectingQuestion": "...",
+      "videos": [
+        {
+          "id": "...",
+          "whyThisVideo": "...",
+          "outdated": false,
+          "questions": [
+            { "type": "recall", "text": "...", "hint": null },
+            { "type": "conceptual", "text": "...", "hint": null },
+            { "type": "application", "text": "...", "hint": null }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Note: `hint` is always `null` at assembly time. Hints are generated lazily by Prompt 4.
+
+### Prompt 4: Lazy Hint Generation (POST /api/hints)
+
+```
+SYSTEM: You are a Socratic tutor. Generate one hint per question that nudges
+the learner toward the answer without giving it away. Always respond with valid JSON.
+
+USER: Video transcript excerpt:
+{transcript.slice(0, 600)}
+
+Questions:
+1. {questions[0].text}
+2. {questions[1].text}
+3. {questions[2].text}
+
+Respond with:
+{ "hints": ["hint for Q1", "hint for Q2", "hint for Q3"] }
+```
+
+### JSON Parsing Strategy
+
+Claude sometimes wraps JSON in markdown fences. Use this extraction pattern:
+
+```javascript
+function extractJSON(text) {
+  // Strip ```json ... ``` fences if present
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = fenced ? fenced[1] : text;
+  return JSON.parse(raw.trim());
+}
+```
+
+If parsing fails, retry the Claude call once with "Return ONLY raw JSON, no markdown" appended to the system prompt.
+
+---
+
+## Error Handling Across Async Steps
+
+### Principle: Fail the Job, Not the Server
+
+Every pipeline step can fail (rate limit, bad API key, network timeout). The orchestrator catches all errors and transitions the job to `error` state, then emits an SSE `error` event. The server never crashes.
+
+```javascript
+// Per-step error: fail gracefully per video, not the whole pipeline
+async function fetchTranscripts(videos) {
+  return Promise.all(videos.map(async (video) => {
+    try {
+      const transcript = await youtubeCaptions(video.id);
+      return { ...video, transcript };
+    } catch (_err) {
+      // Fallback: use description, mark transcript as synthetic
+      return { ...video, transcript: video.description, transcriptFallback: true };
+    }
+  }));
+}
+```
+
+### Error Taxonomy
+
+| Error Type | Source | Strategy |
+|------------|--------|----------|
+| YouTube quota exceeded | YouTube API 403 | Fail entire pipeline, clear message to UI |
+| Individual caption unavailable | YouTube captions 404 | Per-video fallback to description, continue |
+| Claude API timeout | Anthropic timeout | Retry once with 5s delay; fail job on second failure |
+| Claude returns invalid JSON | Anthropic response | Retry with stricter JSON instruction; fail step on second failure |
+| Claude rejects all videos | Step 5 curation | Return empty modules array; UI shows "no quality videos found" |
+| Missing env vars on startup | dotenv | `process.exit(1)` at startup with clear error message |
+
+### Express Error Middleware
+
+```javascript
+// Must be defined LAST in server.js after all routes
+// Four-argument signature required for Express to treat as error middleware
+app.use((err, req, res, next) => {
+  console.error('[ERROR]', err.message);
+  // Don't leak stack traces to client
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+});
+```
+
+**Note on Express version:** Express 5 (released stable 2024) auto-catches rejected promises in route handlers. Use Express 5 (`npm install express@5`) to avoid wrapping every async handler in try/catch.
+
+---
+
+## Scoring Engine Design
+
+The scoring engine is synchronous and pure — no API calls, no side effects. This makes it testable and predictable.
+
+```
+finalScore = (
+  likeRatio        * weight.likeRatio        +   // likes / (likes + dislikes)
+  durationScore    * weight.duration         +   // optimal range: 8–25 min
+  recencyScore     * weight.recency          +   // decay function on publishedAt
+  descriptionScore * weight.description      +   // length + keyword signals
+  channelScore     * weight.channel              // from Claude credibility rating
+)
+```
+
+Skill-level weight adjustments (example):
+- **Beginner:** boost `durationScore` weight (shorter is better), boost `recencyScore`
+- **Advanced:** boost `channelScore`, reduce `recencyScore` penalty (seminal content ages well)
+
+Channel credibility from Claude runs as a **single batch call** in Step 3 — deduplicate channels from all candidate videos, call Claude once with all channel names/descriptions, get back a `{ channelId: score }` map. This keeps Claude API calls to a minimum.
+
+---
+
+## Scalability Considerations
+
+This is a personal local tool. Scalability is not a concern. However, one structural decision matters for correctness:
+
+| Concern | Approach |
+|---------|----------|
+| Multiple concurrent generations | The Job Store Map handles N concurrent jobs correctly. No state is shared between jobs. |
+| Job cleanup | Delete jobs from the Map after 30 minutes to prevent memory leak on long sessions. Use `setTimeout` per job. |
+| YouTube API quota | Each generation uses ~10–20 search queries + 1 video details batch = ~100–200 quota units. Daily quota is 10,000 units. Safe for personal use. |
+| Claude token cost | Step 5 assembly prompt is the largest. With 12 videos × 800-char transcript excerpt, expect ~8,000–12,000 input tokens per generation. Budget accordingly. |
+
+---
+
+## Suggested Build Order
+
+Build in this order to unblock everything downstream:
+
+1. **Express skeleton + SSE infrastructure** — Static file serving, Job Store, SSE route, `runPipeline` stub that emits fake progress events. Proves the browser-server SSE connection works before any real pipeline exists.
+
+2. **YouTube search + video details** — Step 2 only. Returns raw videos. Validate API key, confirm quota usage, see real data.
+
+3. **Scoring engine** — Pure function, no API calls. Build and test with static video data from Step 2. This is the critical differentiator logic.
+
+4. **Claude: search query generation** — Step 1. Small prompt, easy to validate. Now the full Step 1→2→3 chain works.
+
+5. **Transcript fetching** — Step 4. Build the happy path (captions API) then the fallback (description). Test both.
+
+6. **Claude: course assembly** — Step 5. Largest and most complex prompt. Iterate on prompt until output schema is consistent.
+
+7. **Full pipeline integration** — Wire all 5 steps through the orchestrator with real SSE events.
+
+8. **index.html UI** — Build against the real API. Render course, localStorage history, export, checkboxes, hints lazy-load.
+
+9. **Lazy hints** — POST /api/hints route + Prompt 4. Add last because it depends on the course structure being stable.
+
+**Rationale for this order:**
+- Steps 1 and 2 establish the SSE contract the UI depends on — nothing else can be tested end-to-end without it
+- Scoring engine has no external dependencies — it can be built and validated independently
+- Claude prompts are the riskiest component (schema drift, token limits, unexpected output) — start with the small one (Step 1) to establish the `callClaude` + `extractJSON` pattern before hitting the large Step 5 prompt
+- UI is built last because it's pure rendering against a stable API contract
+
+---
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Awaiting Pipeline in the Route Handler
+**What:** `app.post('/api/generate', async (req, res) => { const course = await runPipeline(...); res.json(course); })`
+**Why bad:** Pipeline takes 30–90 seconds. HTTP will timeout. Client gets no progress.
+**Instead:** Start pipeline detached, return `jobId` immediately, stream progress over SSE.
+
+### Anti-Pattern 2: One Claude Call Per Video for Channel Credibility
+**What:** Calling Claude once per channel to get a credibility rating.
+**Why bad:** 12 videos from 8 channels = 8 Claude API calls in Step 3. Slow and expensive.
+**Instead:** Deduplicate channels, send one batch prompt with all channel descriptions, get back a map.
+
+### Anti-Pattern 3: Streaming Claude Responses Through SSE
+**What:** Piping Claude streaming tokens directly to the SSE stream.
+**Why bad:** Complicates JSON extraction, brittle, no benefit for this use case (the UI shows step progress, not token-by-token output).
+**Instead:** Non-streaming Claude calls. Emit one SSE event per completed step.
+
+### Anti-Pattern 4: Fetching All Transcripts Before Scoring
+**What:** Fetching transcripts for all candidate videos (potentially 60–80 from 8 searches) before scoring.
+**Why bad:** YouTube captions API is slow and rate-limited. Most of these videos will be discarded.
+**Instead:** Score first (likes/views/duration are in the search results), take top 12, then fetch transcripts only for those 12.
+
+### Anti-Pattern 5: Free-Form Claude Responses
+**What:** Asking Claude to "describe the course" in prose and then parsing it.
+**Why bad:** Parsing natural language is fragile. Claude will vary its format across calls.
+**Instead:** Always demand JSON in the system prompt, always specify the exact schema, always use `extractJSON()` for parsing.
 
 ---
 
 ## Sources
 
-- Clerk Express SDK overview: https://clerk.com/docs/reference/express/overview
-- Clerk `clerkMiddleware()`: https://clerk.com/docs/reference/express/clerk-middleware
-- Clerk `requireAuth()` vs `getAuth()` for API routes: https://clerk.com/docs/reference/express/require-auth
-- Clerk same-origin cookie auth: https://clerk.com/docs/backend-requests/making/same-origin
-- Clerk webhook verification with `verifyWebhook`: https://clerk.com/docs/reference/backend/verify-webhook
-- Clerk webhook sync guide: https://clerk.com/docs/guides/development/webhooks/syncing
-- Clerk Billing `has()` for plan checks: https://clerk.com/docs/guides/billing/overview
-- Clerk + Supabase integration guide: https://clerk.com/docs/integrations/databases/supabase
-- Supabase service role key (server-side): https://supabase.com/docs/guides/troubleshooting/performing-administration-tasks-on-the-server-side-with-the-servicerole-secret-BYM4Fa
-- Billing webhooks (Clerk, July 2025): https://clerk.com/changelog/2025-07-02-billing-webhooks
-- EventSource cannot send Authorization headers (W3C spec limitation): https://github.com/whatwg/html/issues/2177
+- MDN Web Docs, "Using server-sent events" — https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events (verified 2026-03-18, HIGH confidence)
+- Express.js official docs, "Error handling" — https://expressjs.com/en/guide/error-handling.html (verified 2026-03-18, HIGH confidence)
+- Pipeline design and Claude prompt architecture — derived from first principles given the constraints in PROJECT.md (MEDIUM confidence, validated by reasoning over known YouTube Data API v3 and Anthropic SDK behavior)
+- YouTube Data API v3 quota costs — 100 units per search call, 1 unit per video.list call (HIGH confidence, stable API fact)

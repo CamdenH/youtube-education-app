@@ -1,15 +1,5 @@
 # YouTube Learning Curator
 
-## Current Milestone: v2.0 SaaS
-
-**Goal:** Transform the local MVP into a public B2C SaaS product with user accounts, cloud persistence, and paid subscription tiers.
-
-**Target features:**
-- Auth — Clerk sign up/sign in, protected course generation route
-- Persistence — Supabase course history + cache table (replaces localStorage + file cache)
-- Billing — Clerk Billing subscription tiers (free/pro/power), usage gates, idempotent webhooks
-- SaaS UI — Marketing landing page, onboarding flow, upgrade prompts
-
 ## What This Is
 
 A B2C SaaS web app that turns any subject into a structured YouTube learning course. Given a subject and skill level, it searches YouTube, scores and curates the best educational videos using a multi-component algorithm, organizes them into thematic modules, generates comprehension questions from transcripts, and offers lazy hint generation. The v1.0 MVP runs locally; v2.0 adds user accounts, cloud persistence, and paid subscription tiers.
@@ -108,22 +98,5 @@ Surface the best YouTube content for learning a subject with maximum curation pr
 | Clerk + Supabase + Railway for SaaS | Fastest path to production auth+billing+DB without infra ops | — Pending (v2.0) |
 | Clerk Billing over Stripe directly | Clerk handles subscription UI + webhooks + user linkage natively | — Pending (v2.0) |
 
-## Evolution
-
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
-
 ---
-*Last updated: 2026-04-12 — Milestone v2.0 SaaS started*
+*Last updated: 2026-04-12 after v1.0 milestone*
