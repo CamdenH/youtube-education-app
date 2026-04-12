@@ -43,7 +43,11 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
   3. An unauthenticated POST to /api/generate returns 401 — the course generation route is protected
   4. When a new user signs up, a corresponding users row (clerk_id + default plan = 'free') is created in Supabase via Clerk webhook
   5. A newly signed-up user sees an onboarding page explaining how course generation works before reaching the main app
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 06-01-PLAN.md — Backend foundation: db.js (Supabase client) and webhooks.js (Clerk webhook handler)
+- [ ] 06-02-PLAN.md — Server wiring: auth.js middleware, server.js restructure, protected routes
+- [ ] 06-03-PLAN.md — Frontend pages: landing.html, onboarding.html, index.html header bar
 **UI hint**: yes
 
 ### Phase 7: Persistence
@@ -88,7 +92,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 | 3. Transcript + Course Assembly | v1.0 | 3/3 | Complete | 2026-04-07 |
 | 4. Frontend + Persistence + Export | v1.0 | 4/4 | Complete | 2026-04-11 |
 | 5. Lazy Hints | v1.0 | 3/3 | Complete | 2026-04-12 |
-| 6. Auth | v2.0 | 0/TBD | Not started | - |
+| 6. Auth | v2.0 | 0/3 | Not started | - |
 | 7. Persistence | v2.0 | 0/TBD | Not started | - |
 | 8. Billing | v2.0 | 0/TBD | Not started | - |
 | 9. SaaS UI | v2.0 | 0/TBD | Not started | - |
