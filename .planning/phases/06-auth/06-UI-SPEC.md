@@ -42,9 +42,13 @@ Declared values (must be multiples of 4):
 | 3xl | 64px | Page-level vertical spacing |
 
 Exceptions:
-- Header bar height: 48px (2xl) — aligns with touch target minimum and existing app proportions
-- Clerk user-button: 32px diameter minimum (Clerk default, do not override)
-- Focus ring: `outline: 2px solid var(--color-accent); outline-offset: 2px` — carry forward from existing `index.html` pattern
+
+| Element | Value | Justification |
+|---------|-------|---------------|
+| Header bar height | 48px | Aligns with touch target minimum and existing app proportions (maps to 2xl token) |
+| Clerk user-button | 32px diameter minimum | Clerk default — do not override (maps to xl token) |
+| Focus ring | `outline: 2px solid var(--color-accent); outline-offset: 2px` | Carry forward from existing `index.html` pattern — 2px is a border, not a spacing token |
+| `#btn-generate` in `index.html` (existing) | `padding: 10px 20px` | Pre-existing value in `index.html` — 10px does NOT conform to the spacing scale. Do NOT carry this forward. New buttons in `landing.html` and `onboarding.html` MUST use `padding: 8px 16px` (sm/md tokens). `#btn-generate` is not modified in Phase 6; it will be corrected in a future cleanup pass. |
 
 Source: CSS custom properties in `index.html` `:root` — `--space-xs` through `--space-3xl`.
 
@@ -107,7 +111,7 @@ New UI surfaces introduced in Phase 6:
 - Page structure: header (nav) → hero section → features section → CTA section
 - Hero headline: Display size (28px, semibold), `--color-text`
 - Hero subheading: Body size (16px, regular), `--color-text-muted`
-- Primary CTA button: "Sign up free" — `--color-accent` background, white text, 6px border-radius, padding `10px 20px` (matches existing `#btn-generate`)
+- Primary CTA button: "Sign up free" — `--color-accent` background, white text, 6px border-radius, **padding: 8px 16px** (sm/md tokens)
 - Secondary link: "Go to app" — plain text link, `--color-accent` color, no button chrome
 - Feature items: 3 items max, Heading size label + Body size description
 - Footer: minimal — label size, `--color-text-muted`
@@ -119,7 +123,7 @@ New UI surfaces introduced in Phase 6:
   1. How course generation works — Heading + Body
   2. Skill level options explained — Heading + Label-sized list items
   3. Static example of a finished course — HTML mockup in a `--color-surface` card, max 3 video items shown, `--color-surface-raised` card background
-  4. CTA to `/app` — "Start learning" button, accent background, same style as landing CTA
+  4. CTA to `/app` — "Start learning" button, accent background, **padding: 8px 16px** (sm/md tokens)
 - Max content width: 640px centered
 - No server interaction — fully static
 
