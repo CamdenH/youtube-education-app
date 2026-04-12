@@ -8,7 +8,7 @@
 
 - [ ] **AUTH-01**: User can sign up for an account via Clerk-hosted UI
 - [ ] **AUTH-02**: User can sign in and sign out from any page
-- [ ] **AUTH-03**: Course generation requires authentication — unauthenticated requests to POST /api/generate return 401
+- [ ] **AUTH-03**: Course generation requires authentication — unauthenticated requests to GET /api/course-stream return 401
 - [ ] **AUTH-04**: Clerk webhook syncs new user record (clerk_id + default plan) to Supabase users table on account creation
 - [ ] **AUTH-05**: User sees a post-signup onboarding page explaining how course generation works
 

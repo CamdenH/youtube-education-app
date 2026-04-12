@@ -23,7 +23,7 @@ Persistence (course history, watched state, cache table) is Phase 7. Billing gat
 - **D-03:** Page contains four things: (1) how course generation works (enter topic → Claude + YouTube → structured course), (2) what the skill level options mean (beginner/intermediate/advanced/all levels), (3) a static example of a finished course, (4) a CTA button taking the user to `/app`.
 
 ### App auth gate (AUTH-02, AUTH-03)
-- **D-04:** Unauthenticated requests to `/app` get a **server-side redirect** to Clerk's hosted sign-in page via `requireUser` middleware — no app HTML is served to unauth users.
+- **D-04:** Unauthenticated requests to `/app` get a **server-side redirect** to Clerk's hosted sign-in page via `requireAuth()` middleware — no app HTML is served to unauth users. (`requireUser` returns 401 JSON and is used only for API routes; `requireAuth` performs the redirect.)
 - **D-05:** The landing page `/` is fully static — no session detection, no server-side redirect for signed-in users. The hero CTA says "Sign up free"; a secondary link says "Go to app". Signed-in users who land on `/` can click through themselves.
 - **D-06:** Sign-in/sign-out control lives in a **header bar** at the top of the app (`index.html`), showing the signed-in user's name/avatar and a sign-out link.
 

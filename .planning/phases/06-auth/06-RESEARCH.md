@@ -664,22 +664,16 @@ CREATE TABLE users (
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Email nullable in users table?**
-   - What we know: The `requireUser` optimistic upsert may not have the email (only webhook has it). DDL draft makes `email TEXT` (nullable).
-   - What's unclear: Whether the product requires a non-null email at insert time.
-   - Recommendation: Keep `email TEXT` nullable — webhook fills it in within seconds of signup.
+1. **Email nullable in users table?** (RESOLVED)
+   - Decision: Keep `email TEXT` nullable — the `requireUser` optimistic upsert may not have the email; the webhook fills it in within seconds of signup.
 
-2. **CLERK_SIGN_IN_URL value for `requireAuth()`**
-   - What we know: `requireAuth()` accepts a `signInUrl` option or reads from env var.
-   - What's unclear: Whether to use Clerk's hosted accounts domain (e.g., `https://accounts.clerk.com/sign-in`) or a local route (e.g., `/sign-in` served by a mounted component).
-   - Recommendation: Use Clerk's hosted sign-in URL from the Dashboard — no custom `/sign-in` page needed given the project architecture.
+2. **CLERK_SIGN_IN_URL value for `requireAuth()`** (RESOLVED)
+   - Decision: Use Clerk's hosted sign-in URL from the Dashboard — no custom `/sign-in` page needed given the project architecture.
 
-3. **`@clerk/express/webhooks` CommonJS compatibility**
-   - What we know: `@clerk/express` v2 is the package, and `verifyWebhook` is documented. Project uses `require()` (CommonJS).
-   - What's unclear: Whether `@clerk/express/webhooks` subpath has a `require()` export in the package.json `exports` field.
-   - Recommendation: Verify at install time by running `node -e "require('@clerk/express/webhooks')"`. If it fails, fall back to raw svix `new Webhook(secret).verify()`.
+3. **`@clerk/express/webhooks` CommonJS compatibility** (RESOLVED)
+   - Decision: Fall back to raw svix `new Webhook(secret).verify()` for webhook signature verification (used in plans). Avoids any ESM subpath compatibility risk. Both approaches are equivalent.
 
 ---
 

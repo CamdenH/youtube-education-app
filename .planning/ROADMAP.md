@@ -40,7 +40,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 **Success Criteria** (what must be TRUE):
   1. A new visitor can create an account via Clerk-hosted sign-up UI and land on the app
   2. An existing user can sign in and sign out from any page without losing their session unexpectedly
-  3. An unauthenticated POST to /api/generate returns 401 — the course generation route is protected
+  3. An unauthenticated GET to /api/course-stream returns 401 — the course generation route is protected
   4. When a new user signs up, a corresponding users row (clerk_id + default plan = 'free') is created in Supabase via Clerk webhook
   5. A newly signed-up user sees an onboarding page explaining how course generation works before reaching the main app
 **Plans:** 3 plans
