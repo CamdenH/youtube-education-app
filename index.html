@@ -54,6 +54,7 @@
       max-width: 640px;
       margin: 0 auto;
       padding: var(--space-lg);
+      padding-top: 48px;
     }
 
     h1 {
@@ -712,6 +713,23 @@
   </style>
 </head>
 <body>
+  <header id="app-header" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-surface-raised);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--space-md);
+    z-index: 1000;
+  ">
+    <span style="font-size: var(--font-size-label); color: var(--color-text-muted);">YouTube Learning Curator</span>
+    <div id="clerk-user-button"></div>
+  </header>
   <main>
     <h1>YouTube Learning Curator</h1>
     <p class="subtitle">Curated YouTube courses powered by AI</p>
@@ -1593,6 +1611,26 @@
       const initialHistory = loadHistory();
       renderHistory(initialHistory);
 
+    });
+  </script>
+
+  <!-- Clerk JS — copy the exact script tag from Clerk Dashboard > API Keys > JavaScript.
+       Replace CLERK_PUBLISHABLE_KEY_PLACEHOLDER with your pk_live_... or pk_test_... key.
+       Replace CLERK_FAPI_URL_PLACEHOLDER with the Frontend API URL from your Clerk Dashboard. -->
+  <script
+    defer
+    crossorigin="anonymous"
+    data-clerk-publishable-key="CLERK_PUBLISHABLE_KEY_PLACEHOLDER"
+    src="https://CLERK_FAPI_URL_PLACEHOLDER/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
+    type="text/javascript"
+  ></script>
+
+  <script>
+    window.addEventListener('load', async function () {
+      await Clerk.load();
+      if (Clerk.user) {
+        Clerk.mountUserButton(document.getElementById('clerk-user-button'));
+      }
     });
   </script>
 </body>
