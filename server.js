@@ -4,7 +4,7 @@ require('dotenv').config();
 
 const path = require('path');
 const express = require('express');
-const { clerkMiddleware, requireAuth } = require('@clerk/express');
+const { clerkMiddleware, requireAuth, getAuth } = require('@clerk/express');
 const { clerkWebhookHandler } = require('./webhooks');
 const { requireUser } = require('./auth');
 const { courseStreamHandler, sendEvent } = require('./sse');
@@ -15,6 +15,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const anthropic = new Anthropic();
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // STEP 1: Webhook route with raw body — BEFORE express.json() (D-11)
@@ -36,8 +37,14 @@ app.use(express.static(__dirname));
 // STEP 6: JSON body parser — AFTER webhook route (D-11)
 app.use(express.json());
 
-// STEP 7: Protected HTML route — redirect unauth to Clerk sign-in (D-04, T-06-06)
-app.get('/app', requireAuth({ signInUrl: process.env.CLERK_SIGN_IN_URL }), (req, res) => {
+// STEP 7: Protected HTML route — redirect unauth to Clerk sign-in with return URL (D-04, T-06-06)
+app.get('/app', (req, res, next) => {
+  const { userId } = getAuth(req);
+  if (userId) return next();
+  const signInUrl = new URL(process.env.CLERK_SIGN_IN_URL);
+  signInUrl.searchParams.set('redirect_url', `${req.protocol}://${req.hostname}/app`);
+  return res.redirect(signInUrl.toString());
+}, (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
