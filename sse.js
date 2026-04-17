@@ -157,6 +157,7 @@ async function courseStreamHandler(req, res) {
   // D-09: course_assembled is the terminal SSE event
   const courseResult = await assembleCourse(videosWithTranscripts, transcripts, subject, skillLevel);
 
+  let courseToReturn = null;
   if (courseResult.error === 'TOO_FEW_VIDEOS') {
     // D-03: Emit error shape as the terminal course_assembled event (no course key)
     sendEvent(res, 'course_assembled', courseResult);
@@ -167,10 +168,12 @@ async function courseStreamHandler(req, res) {
       message: 'Course ready',
       course: courseResult,
     });
+    courseToReturn = courseResult;
   }
 
   clearInterval(heartbeatInterval);
   res.end();
+  return courseToReturn;
 }
 
 module.exports = { sendEvent, sendHeartbeat, startHeartbeat, courseStreamHandler };
