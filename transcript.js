@@ -1,3 +1,5 @@
+'use strict';
+
 const { cacheGet, cacheSet } = require('./cache');
 const { fetchVideoStats } = require('./youtube');
 

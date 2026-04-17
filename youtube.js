@@ -1,3 +1,5 @@
+'use strict';
+
 const { cacheGet, cacheSet, queryHash } = require('./cache');
 
 class YouTubeAPIError extends Error {
