@@ -3,8 +3,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
-const { sendEvent } = require('../../sse');
-const { YouTubeQuotaError } = require('../../youtube');
 
 // ─── Pre-inject mocks before loading server.js ────────────────────────────────
 // server.js now requires @clerk/express, ./auth, ./db at module init.
@@ -62,6 +60,10 @@ require.cache[require.resolve('@clerk/express')] = {
     getAuth: (req) => _clerkGetAuthImpl(req),
   },
 };
+
+// Now load sse/youtube (Supabase mock is in cache — require chain won't crash)
+const { sendEvent } = require('../../sse');
+const { YouTubeQuotaError } = require('../../youtube');
 
 // Now load server.js (it will pick up mocked modules from cache)
 const app = require('../../server');
