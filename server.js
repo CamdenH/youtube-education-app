@@ -9,6 +9,7 @@ const { clerkWebhookHandler } = require('./webhooks');
 const { requireUser } = require('./auth');
 const { courseStreamHandler, sendEvent } = require('./sse');
 const { transcriptHandler } = require('./transcript');
+const { saveCourse, getCourseHistory } = require('./db');
 const { YouTubeQuotaError } = require('./youtube');
 const { callClaude, parseClaudeJSON } = require('./claude');
 const Anthropic = require('@anthropic-ai/sdk');
@@ -64,7 +65,14 @@ app.get('/api/course-stream', requireUser, async (req, res) => {
   }
 
   try {
-    await courseStreamHandler(req, res);
+    const course = await courseStreamHandler(req, res);
+    if (course) {
+      try {
+        await saveCourse(req.userId, subject, skill_level, course);
+      } catch (saveErr) {
+        console.error('[course-stream] saveCourse failed:', saveErr.message);
+      }
+    }
   } catch (err) {
     console.error('[course-stream] pipeline error:', err);
     // If headers already sent (SSE stream started), emit error event
@@ -79,6 +87,17 @@ app.get('/api/course-stream', requireUser, async (req, res) => {
       // Headers not sent yet — respond with 500
       res.status(500).json({ error: err.message });
     }
+  }
+});
+
+// STEP 8b: Course history route — protected, returns per-user history (D-06, D-07)
+app.get('/api/courses', requireUser, async (req, res) => {
+  try {
+    const history = await getCourseHistory(req.userId);
+    return res.json({ courses: history });
+  } catch (err) {
+    console.error('[courses] getCourseHistory failed:', err.message);
+    return res.status(500).json({ error: 'Failed to load course history.' });
   }
 });
 
