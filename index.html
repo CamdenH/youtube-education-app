@@ -1026,31 +1026,26 @@
         }
       }
 
-      // ─── History Persistence ───────────────────────────────────────────────
+      // ─── History Persistence (D-06, D-07: server-backed) ───────────────────
 
-      function loadHistory() {
+      // Module-level cache of the most recent /api/courses response.
+      // Populated by renderHistory; read by restoreCourse.
+      let currentHistory = [];
+
+      async function fetchCourseHistory() {
         try {
-          return JSON.parse(localStorage.getItem('ylc_history') || '[]');
+          const res = await fetch('/api/courses');
+          if (!res.ok) return [];
+          const body = await res.json();
+          return body.courses || [];
         } catch (_) {
           return [];
         }
       }
 
-      function saveHistory(entries) {
-        try {
-          localStorage.setItem('ylc_history', JSON.stringify(entries));
-        } catch (e) {
-          if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-            const sorted = [...entries].sort((a, b) => new Date(a.generatedAt) - new Date(b.generatedAt));
-            sorted.shift();
-            try {
-              localStorage.setItem('ylc_history', JSON.stringify(sorted));
-            } catch (_) { /* silent fail */ }
-          }
-        }
-      }
-
       function renderHistory(history) {
+        currentHistory = history;
+
         const panel = document.getElementById('history-panel');
         const list = document.getElementById('history-list');
         const empty = document.getElementById('history-empty');
@@ -1075,11 +1070,11 @@
 
           const badgeSpan = document.createElement('span');
           badgeSpan.className = 'skill-badge';
-          badgeSpan.textContent = entry.skillLevel;
+          badgeSpan.textContent = entry.skill_level;
 
           const metaSpan = document.createElement('span');
           metaSpan.className = 'history-meta';
-          metaSpan.textContent = relativeTime(entry.generatedAt);
+          metaSpan.textContent = relativeTime(entry.created_at);
 
           item.appendChild(titleSpan);
           item.appendChild(badgeSpan);
@@ -1092,14 +1087,13 @@
       }
 
       function restoreCourse(index) {
-        const history = loadHistory();
-        const entry = history[index];
+        const entry = currentHistory[index];
         if (!entry) return;
 
-        currentSubject = entry.subject;
-        currentSkillLevel = entry.skillLevel;
+        currentSubject = entry.topic;
+        currentSkillLevel = entry.skill_level;
 
-        renderCourse(entry.course, entry.subject, entry.skillLevel);
+        renderCourse(entry.course, entry.topic, entry.skill_level);
 
         // Update active state on history items
         const items = document.querySelectorAll('.history-item');
@@ -1112,20 +1106,6 @@
         });
 
         document.getElementById('course-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-
-      function saveCourseToHistory(course, subject, skillLevel) {
-        const entry = {
-          subject: subject,
-          skillLevel: skillLevel,
-          generatedAt: new Date().toISOString(),
-          course: course
-        };
-        let history = loadHistory();
-        history.unshift(entry);
-        if (history.length > 10) history = history.slice(0, 10);
-        saveHistory(history);
-        renderHistory(history);
       }
 
       // ─── Export ────────────────────────────────────────────────────────────
@@ -1568,7 +1548,7 @@
                 showError('Not enough high-quality videos found. Try a broader search term.');
               } else {
                 renderCourse(data.course, subject, skillLevel);
-                saveCourseToHistory(data.course, subject, skillLevel);
+                fetchCourseHistory().then(history => renderHistory(history));
               }
 
               enableForm();
@@ -1608,8 +1588,7 @@
       const initialSearches = loadRecentSearches();
       renderRecentSearches(initialSearches);
 
-      const initialHistory = loadHistory();
-      renderHistory(initialHistory);
+      fetchCourseHistory().then(history => renderHistory(history));
 
     });
   </script>
