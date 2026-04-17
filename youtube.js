@@ -38,8 +38,8 @@ function handleYouTubeError(errorBody) {
  * @returns {Promise<object>} YouTube search.list response body
  */
 async function searchVideos(query) {
-  const cacheKey = `search_${queryHash(query)}`;
-  const cached = await cacheGet(cacheKey);
+  const cacheKey = `search_${queryHash(query)}.json`;
+  const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
   const params = new URLSearchParams({
@@ -58,7 +58,7 @@ async function searchVideos(query) {
   if (!res.ok) handleYouTubeError(await res.json());
 
   const data = await res.json();
-  await cacheSet(cacheKey, data);
+  cacheSet(cacheKey, data);
   return data;
 }
 
@@ -74,7 +74,7 @@ async function fetchVideoStats(videoIds) {
   const uncachedIds = [];
 
   for (const id of videoIds) {
-    const cached = await cacheGet(`video_${id}`);
+    const cached = cacheGet(`video_${id}.json`);
     if (cached) {
       cachedItems.push(cached);
     } else {
@@ -107,9 +107,7 @@ async function fetchVideoStats(videoIds) {
     fetchedItems.push(...(data.items || []));
   }
 
-  for (const item of fetchedItems) {
-    await cacheSet(`video_${item.id}`, item);
-  }
+  fetchedItems.forEach(item => cacheSet(`video_${item.id}.json`, item));
 
   return [...cachedItems, ...fetchedItems];
 }

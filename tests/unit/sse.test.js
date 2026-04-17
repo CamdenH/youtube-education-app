@@ -444,3 +444,33 @@ test('courseStreamHandler TOO_FEW_VIDEOS — when assembleCourse returns error s
   assert.equal(payload.error, 'TOO_FEW_VIDEOS', 'course_assembled payload should have error field');
   assert.ok(!('course' in payload), 'course_assembled error shape should not have a course key');
 });
+
+test('courseStreamHandler returns the assembled course object on success (D-08)', async () => {
+  const res = makeMockRes();
+  const req = makeMockReq();
+
+  const result = await courseStreamHandler(req, res);
+
+  assert.ok(result, 'courseStreamHandler should return a non-null value on success');
+  assert.equal(result.title, STUB_COURSE.title, 'returned course should have the correct title');
+  assert.deepEqual(result.modules, STUB_COURSE.modules, 'returned course should have the correct modules');
+});
+
+test('courseStreamHandler returns null on TOO_FEW_VIDEOS (D-08)', async () => {
+  assemblerStub._impl = async () => ({
+    step: 5,
+    total: 5,
+    error: 'TOO_FEW_VIDEOS',
+    message: 'Only 3 videos passed quality review.',
+  });
+
+  const res = makeMockRes();
+  const req = makeMockReq();
+
+  try {
+    const result = await courseStreamHandler(req, res);
+    assert.equal(result, null, 'courseStreamHandler should return null on TOO_FEW_VIDEOS');
+  } finally {
+    assemblerStub._impl = async () => STUB_COURSE;
+  }
+});

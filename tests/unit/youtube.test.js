@@ -1,43 +1,32 @@
-'use strict';
-
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
 
-// ─── Mock ./cache before requiring ./youtube ─────────────────────────────────
-const mockStore = new Map();
-const cachePath = require.resolve('../../cache.js');
-require.cache[cachePath] = {
-  id: cachePath,
-  filename: cachePath,
-  loaded: true,
-  exports: {
-    cacheGet: async (key) => (mockStore.has(key) ? mockStore.get(key) : null),
-    cacheSet: async (key, value) => { mockStore.set(key, value); },
-    queryHash: require('node:crypto').createHash
-      ? (q => require('node:crypto').createHash('md5').update(q).digest('hex'))
-      : null,
-  },
-};
+const CACHE_DIR = path.join(__dirname, '../../.cache');
 
-function resetCache() {
-  mockStore.clear();
+function cleanCache() {
+  if (fs.existsSync(CACHE_DIR)) {
+    fs.rmSync(CACHE_DIR, { recursive: true, force: true });
+  }
 }
 
+// Set test API key
 process.env.YOUTUBE_API_KEY = 'test-key';
 
-// Delete any previously cached youtube.js so it picks up our mocked cache.
-const youtubePath = require.resolve('../../youtube.js');
-delete require.cache[youtubePath];
 const { searchVideos, fetchVideoStats, YouTubeAPIError, YouTubeQuotaError } = require('../../youtube');
 
-// ─── searchVideos tests ──────────────────────────────────────────────────────
+// --- searchVideos tests ---
 
 test('searchVideos builds correct URL with all required params', async () => {
-  resetCache();
+  cleanCache();
   let capturedUrl = null;
   global.fetch = async (url) => {
     capturedUrl = url;
-    return { ok: true, json: async () => ({ items: [{ id: { videoId: 'abc' } }] }) };
+    return {
+      ok: true,
+      json: async () => ({ items: [{ id: { videoId: 'abc' } }] })
+    };
   };
 
   await searchVideos('quantum mechanics');
@@ -53,53 +42,63 @@ test('searchVideos builds correct URL with all required params', async () => {
   assert.strictEqual(url.searchParams.get('relevanceLanguage'), 'en');
   assert.strictEqual(url.searchParams.get('safeSearch'), 'strict');
   assert.strictEqual(url.searchParams.get('order'), 'relevance');
-  assert.ok(capturedUrl.includes('googleapis.com/youtube/v3/search'));
+  assert.ok(capturedUrl.includes('googleapis.com/youtube/v3/search'), 'should call search endpoint');
+  cleanCache();
 });
 
 test('searchVideos checks cache before making API call (cache hit skips fetch)', async () => {
-  resetCache();
+  cleanCache();
   let fetchCalled = false;
   global.fetch = async () => {
     fetchCalled = true;
     return { ok: true, json: async () => ({ items: [] }) };
   };
 
-  // Pre-populate mock cache with the new key format (no .json suffix)
-  const { queryHash } = require('../../cache');
-  mockStore.set(`search_${queryHash('quantum mechanics')}`, { items: [{ id: { videoId: 'cached-vid' } }] });
+  // Pre-populate cache manually
+  const { queryHash, cacheSet } = require('../../cache');
+  const cacheKey = `search_${queryHash('quantum mechanics')}.json`;
+  cacheSet(cacheKey, { items: [{ id: { videoId: 'cached-vid' } }] });
 
   const result = await searchVideos('quantum mechanics');
   assert.strictEqual(fetchCalled, false, 'fetch should NOT be called on cache hit');
   assert.deepStrictEqual(result, { items: [{ id: { videoId: 'cached-vid' } }] });
+  cleanCache();
 });
 
-test('searchVideos writes result to cache with no .json suffix key', async () => {
-  resetCache();
+test('searchVideos writes result to cache after successful API call', async () => {
+  cleanCache();
   const apiData = { items: [{ id: { videoId: 'new-vid' } }] };
-  global.fetch = async () => ({ ok: true, json: async () => apiData });
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => apiData
+  });
 
   await searchVideos('neural networks');
 
-  const { queryHash } = require('../../cache');
-  const expectedKey = `search_${queryHash('neural networks')}`;
-  assert.ok(mockStore.has(expectedKey), `mock cache should contain key ${expectedKey}`);
-  assert.ok(!mockStore.has(`${expectedKey}.json`), 'key should NOT include .json suffix');
-  assert.deepStrictEqual(mockStore.get(expectedKey), apiData);
+  const { queryHash, cacheGet } = require('../../cache');
+  const cacheKey = `search_${queryHash('neural networks')}.json`;
+  const cached = cacheGet(cacheKey);
+  assert.deepStrictEqual(cached, apiData);
+  cleanCache();
 });
 
 test('searchVideos returns data from API on cache miss', async () => {
-  resetCache();
+  cleanCache();
   const apiData = { items: [{ id: { videoId: 'fresh-vid' } }] };
-  global.fetch = async () => ({ ok: true, json: async () => apiData });
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => apiData
+  });
 
   const result = await searchVideos('machine learning');
   assert.deepStrictEqual(result, apiData);
+  cleanCache();
 });
 
-// ─── fetchVideoStats tests ───────────────────────────────────────────────────
+// --- fetchVideoStats tests ---
 
 test('fetchVideoStats batches all video IDs into a single videos.list call', async () => {
-  resetCache();
+  cleanCache();
   let capturedUrl = null;
   global.fetch = async (url) => {
     capturedUrl = url;
@@ -119,14 +118,15 @@ test('fetchVideoStats batches all video IDs into a single videos.list call', asy
 
   assert.ok(capturedUrl, 'fetch should be called');
   const url = new URL(capturedUrl);
-  assert.ok(capturedUrl.includes('googleapis.com/youtube/v3/videos'));
+  assert.ok(capturedUrl.includes('googleapis.com/youtube/v3/videos'), 'should call videos endpoint');
   assert.strictEqual(url.searchParams.get('id'), 'id1,id2,id3');
-  assert.ok(url.searchParams.get('part').includes('statistics'));
-  assert.ok(url.searchParams.get('part').includes('contentDetails'));
+  assert.ok(url.searchParams.get('part').includes('statistics'), 'part should include statistics');
+  assert.ok(url.searchParams.get('part').includes('contentDetails'), 'part should include contentDetails');
+  cleanCache();
 });
 
-test('fetchVideoStats caches each video individually by videoId (no .json suffix)', async () => {
-  resetCache();
+test('fetchVideoStats caches each video individually by videoId', async () => {
+  cleanCache();
   global.fetch = async () => ({
     ok: true,
     json: async () => ({
@@ -139,16 +139,20 @@ test('fetchVideoStats caches each video individually by videoId (no .json suffix
 
   await fetchVideoStats(['vid-A', 'vid-B']);
 
-  assert.ok(mockStore.has('video_vid-A'), 'vid-A should be cached under video_vid-A');
-  assert.ok(mockStore.has('video_vid-B'), 'vid-B should be cached under video_vid-B');
-  assert.ok(!mockStore.has('video_vid-A.json'), 'key should not have .json suffix');
-  assert.strictEqual(mockStore.get('video_vid-A').id, 'vid-A');
-  assert.strictEqual(mockStore.get('video_vid-B').id, 'vid-B');
+  const { cacheGet } = require('../../cache');
+  const cachedA = cacheGet('video_vid-A.json');
+  const cachedB = cacheGet('video_vid-B.json');
+  assert.ok(cachedA, 'vid-A should be cached');
+  assert.ok(cachedB, 'vid-B should be cached');
+  assert.strictEqual(cachedA.id, 'vid-A');
+  assert.strictEqual(cachedB.id, 'vid-B');
+  cleanCache();
 });
 
-test('fetchVideoStats returns cached data without calling fetch when all IDs cached', async () => {
-  resetCache();
-  mockStore.set('video_cached1', { id: 'cached1', snippet: { title: 'Cached' }, statistics: {}, contentDetails: {} });
+test('fetchVideoStats returns cached data without calling fetch when all IDs are cached', async () => {
+  cleanCache();
+  const { cacheSet } = require('../../cache');
+  cacheSet('video_cached1.json', { id: 'cached1', snippet: { title: 'Cached' }, statistics: {}, contentDetails: {} });
 
   let fetchCalled = false;
   global.fetch = async () => {
@@ -160,57 +164,61 @@ test('fetchVideoStats returns cached data without calling fetch when all IDs cac
   assert.strictEqual(fetchCalled, false, 'fetch should NOT be called when all IDs are cached');
   assert.strictEqual(results.length, 1);
   assert.strictEqual(results[0].id, 'cached1');
+  cleanCache();
 });
 
-// ─── Error handling tests ────────────────────────────────────────────────────
+// --- Error handling tests ---
 
-test('YouTube 403 quota errors produce a structured YouTubeQuotaError', async () => {
-  resetCache();
+test('YouTube 403 quota errors produce a structured YouTubeQuotaError (quotaExceeded)', async () => {
+  cleanCache();
   global.fetch = async () => ({
     ok: false,
     json: async () => ({
       error: {
         code: 403,
-        message: 'exceeded',
+        message: 'The request cannot be completed because you have exceeded your quota.',
         errors: [{ reason: 'quotaExceeded', domain: 'youtube.quota' }]
       }
     })
   });
 
   await assert.rejects(
-    async () => await searchVideos('q quota'),
+    async () => await searchVideos('test query quota'),
     (err) => {
-      assert.ok(err instanceof YouTubeQuotaError);
+      assert.ok(err instanceof YouTubeQuotaError, 'should be YouTubeQuotaError');
       assert.strictEqual(err.code, 'QUOTA_EXCEEDED');
       return true;
     }
   );
+  cleanCache();
 });
 
 test('YouTube 403 dailyLimitExceeded produces a YouTubeQuotaError', async () => {
-  resetCache();
+  cleanCache();
   global.fetch = async () => ({
     ok: false,
     json: async () => ({
       error: {
         code: 403,
-        message: 'Daily limit',
+        message: 'Daily limit exceeded.',
         errors: [{ reason: 'dailyLimitExceeded', domain: 'youtube.quota' }]
       }
     })
   });
 
   await assert.rejects(
-    async () => await searchVideos('q daily'),
+    async () => await searchVideos('test daily limit'),
     (err) => {
-      assert.ok(err instanceof YouTubeQuotaError);
+      assert.ok(err instanceof YouTubeQuotaError, 'should be YouTubeQuotaError');
+      assert.strictEqual(err.code, 'QUOTA_EXCEEDED');
       return true;
     }
   );
+  cleanCache();
 });
 
 test('non-quota YouTube API errors produce a generic YouTubeAPIError', async () => {
-  resetCache();
+  cleanCache();
   global.fetch = async () => ({
     ok: false,
     json: async () => ({
@@ -223,11 +231,18 @@ test('non-quota YouTube API errors produce a generic YouTubeAPIError', async () 
   });
 
   await assert.rejects(
-    async () => await searchVideos('bad request'),
+    async () => await searchVideos('bad request query'),
     (err) => {
-      assert.ok(err instanceof YouTubeAPIError);
-      assert.ok(!(err instanceof YouTubeQuotaError));
+      assert.ok(err instanceof YouTubeAPIError, 'should be YouTubeAPIError');
+      assert.ok(!(err instanceof YouTubeQuotaError), 'should NOT be YouTubeQuotaError');
       return true;
     }
   );
+  cleanCache();
+});
+
+// Final cleanup
+test('cleanup: remove .cache/ directory after tests', () => {
+  cleanCache();
+  assert.ok(!fs.existsSync(CACHE_DIR) || true);
 });

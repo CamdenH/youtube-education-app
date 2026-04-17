@@ -31,8 +31,8 @@ function parseTimedtextXml(xml) {
  * @returns {Promise<{source: string, text: string}|null>}
  */
 async function fetchTranscript(videoId) {
-  const cacheKey = `transcript_${videoId}`;
-  const cached = await cacheGet(cacheKey);
+  const cacheKey = `transcript_${videoId}.json`;
+  const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
   try {
@@ -43,7 +43,7 @@ async function fetchTranscript(videoId) {
       const text = parseTimedtextXml(xml);
       if (text.length > 50) {
         const result = { source: 'captions', text };
-        await cacheSet(cacheKey, result);
+        cacheSet(cacheKey, result);
         return result;
       }
     }
@@ -78,7 +78,7 @@ async function transcriptHandler(req, res) {
     if (video && video.snippet && video.snippet.description && video.snippet.description.length > 50) {
       const description = video.snippet.description;
       const result = { source: 'description', text: description };
-      await cacheSet(`transcript_${videoId}`, result);
+      cacheSet(`transcript_${videoId}.json`, result);
       return res.json({ videoId, source: 'description', text: description });
     }
 

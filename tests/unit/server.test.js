@@ -3,12 +3,16 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const { sendEvent } = require('../../sse');
+const { YouTubeQuotaError } = require('../../youtube');
 
-// ─── Pre-inject mocks BEFORE any module that transitively loads db.js ─────────
-// cache.js now requires ./db at the top level; db.js calls createClient() at
-// module load time which requires SUPABASE_URL. Mock @supabase/supabase-js and
-// set env vars here — before requiring sse/youtube/server — so the require chain
-// never hits the real Supabase client.
+// ─── Pre-inject mocks before loading server.js ────────────────────────────────
+// server.js now requires @clerk/express, ./auth, ./db at module init.
+// db.js requires @supabase/supabase-js and crashes without SUPABASE_URL.
+// We inject mocks into require.cache before requiring server so no real
+// clients are instantiated.
+
+// Mock @supabase/supabase-js so db.js does not crash at init
 process.env.SUPABASE_URL = 'https://test.supabase.co';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
 const mockSupabaseClient = { from: () => ({ upsert: async () => ({ error: null }) }) };
@@ -18,9 +22,6 @@ require.cache[require.resolve('@supabase/supabase-js')] = {
   loaded: true,
   exports: { createClient: () => mockSupabaseClient },
 };
-
-const { sendEvent } = require('../../sse');
-const { YouTubeQuotaError } = require('../../youtube');
 
 // Mock @clerk/express — clerkMiddleware passes through, requireAuth passes through,
 // getAuth returns no userId (unauthenticated by default for most tests)
