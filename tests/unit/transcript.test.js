@@ -1,92 +1,85 @@
+'use strict';
+
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
 
-const CACHE_DIR = path.join(__dirname, '../../.cache');
+// ─── Mock ./cache before requiring ./transcript ──────────────────────────────
+const mockStore = new Map();
+const cachePath = require.resolve('../../cache.js');
+require.cache[cachePath] = {
+  id: cachePath,
+  filename: cachePath,
+  loaded: true,
+  exports: {
+    cacheGet: async (key) => (mockStore.has(key) ? mockStore.get(key) : null),
+    cacheSet: async (key, value) => { mockStore.set(key, value); },
+    queryHash: (q) => require('node:crypto').createHash('md5').update(q).digest('hex'),
+  },
+};
 
-function cleanCache() {
-  if (fs.existsSync(CACHE_DIR)) {
-    fs.rmSync(CACHE_DIR, { recursive: true, force: true });
-  }
+function resetCache() {
+  mockStore.clear();
 }
 
 process.env.YOUTUBE_API_KEY = 'test-key';
 
+// Ensure transcript.js (and youtube.js which it requires) load with mocked cache.
+const transcriptPath = require.resolve('../../transcript.js');
+const youtubePath = require.resolve('../../youtube.js');
+delete require.cache[transcriptPath];
+delete require.cache[youtubePath];
+
 const { fetchTranscript, parseTimedtextXml, transcriptHandler } = require('../../transcript');
 
-// --- parseTimedtextXml tests ---
+// ─── parseTimedtextXml tests ─────────────────────────────────────────────────
 
 test('parseTimedtextXml strips tags and returns plain text', () => {
-  const result = parseTimedtextXml('<p>Hello</p><p>World</p>');
-  assert.strictEqual(result, 'Hello World');
+  assert.strictEqual(parseTimedtextXml('<p>Hello</p><p>World</p>'), 'Hello World');
 });
 
 test('parseTimedtextXml returns empty string for empty input', () => {
-  const result = parseTimedtextXml('');
-  assert.strictEqual(result, '');
+  assert.strictEqual(parseTimedtextXml(''), '');
 });
 
 test('parseTimedtextXml decodes HTML entities', () => {
-  const result = parseTimedtextXml('<p>&amp; &lt; &gt; &quot; &#39;</p>');
-  assert.strictEqual(result, '& < > " \'');
+  assert.strictEqual(parseTimedtextXml('<p>&amp; &lt; &gt; &quot; &#39;</p>'), '& < > " \'');
 });
 
 test('parseTimedtextXml collapses multiple spaces and trims', () => {
-  const result = parseTimedtextXml('<p>  multiple   spaces  </p>');
-  assert.strictEqual(result, 'multiple spaces');
+  assert.strictEqual(parseTimedtextXml('<p>  multiple   spaces  </p>'), 'multiple spaces');
 });
 
-// --- fetchTranscript tests ---
+// ─── fetchTranscript tests ───────────────────────────────────────────────────
 
 test('fetchTranscript returns { source: captions, text } when timedtext returns valid XML', async () => {
-  cleanCache();
+  resetCache();
   const validXml = '<transcript><p>' + 'A'.repeat(100) + '</p></transcript>';
   global.fetch = async (url) => {
-    if (url.includes('timedtext')) {
-      return {
-        ok: true,
-        text: async () => validXml
-      };
-    }
+    if (url.includes('timedtext')) return { ok: true, text: async () => validXml };
     throw new Error('unexpected fetch: ' + url);
   };
 
   const result = await fetchTranscript('validId123');
-  assert.ok(result, 'should return a result');
+  assert.ok(result);
   assert.strictEqual(result.source, 'captions');
-  assert.ok(typeof result.text === 'string' && result.text.length > 0, 'should have non-empty text');
-  cleanCache();
+  assert.ok(typeof result.text === 'string' && result.text.length > 0);
 });
 
 test('fetchTranscript returns null when timedtext returns empty body', async () => {
-  cleanCache();
-  global.fetch = async () => ({
-    ok: true,
-    text: async () => ''
-  });
-
-  const result = await fetchTranscript('emptyId456');
-  assert.strictEqual(result, null);
-  cleanCache();
+  resetCache();
+  global.fetch = async () => ({ ok: true, text: async () => '' });
+  assert.strictEqual(await fetchTranscript('emptyId456'), null);
 });
 
 test('fetchTranscript returns null when timedtext returns fewer than 50 chars of text', async () => {
-  cleanCache();
-  global.fetch = async () => ({
-    ok: true,
-    text: async () => '<p>short</p>'
-  });
-
-  const result = await fetchTranscript('shortId789');
-  assert.strictEqual(result, null);
-  cleanCache();
+  resetCache();
+  global.fetch = async () => ({ ok: true, text: async () => '<p>short</p>' });
+  assert.strictEqual(await fetchTranscript('shortId789'), null);
 });
 
-test('fetchTranscript checks cache before fetching (cache hit skips fetch)', async () => {
-  cleanCache();
-  const { cacheSet } = require('../../cache');
-  cacheSet('transcript_cachedVid.json', { source: 'captions', text: 'cached transcript text here' });
+test('fetchTranscript checks cache before fetching (cache hit skips fetch) — uses new key format', async () => {
+  resetCache();
+  mockStore.set('transcript_cachedVid', { source: 'captions', text: 'cached transcript text here' });
 
   let fetchCalled = false;
   global.fetch = async () => {
@@ -97,47 +90,33 @@ test('fetchTranscript checks cache before fetching (cache hit skips fetch)', asy
   const result = await fetchTranscript('cachedVid');
   assert.strictEqual(fetchCalled, false, 'fetch should NOT be called on cache hit');
   assert.strictEqual(result.text, 'cached transcript text here');
-  cleanCache();
 });
 
-test('fetchTranscript caches successful result as transcript_{videoId}.json', async () => {
-  cleanCache();
+test('fetchTranscript caches successful result under transcript_{videoId} key (no .json)', async () => {
+  resetCache();
   const validXml = '<transcript><p>' + 'B'.repeat(100) + '</p></transcript>';
-  global.fetch = async () => ({
-    ok: true,
-    text: async () => validXml
-  });
+  global.fetch = async () => ({ ok: true, text: async () => validXml });
 
   await fetchTranscript('newVideoId');
 
-  const { cacheGet } = require('../../cache');
-  const cached = cacheGet('transcript_newVideoId.json');
-  assert.ok(cached, 'should have cached the transcript');
-  assert.strictEqual(cached.source, 'captions');
-  cleanCache();
+  assert.ok(mockStore.has('transcript_newVideoId'), 'should have cached under key without .json');
+  assert.ok(!mockStore.has('transcript_newVideoId.json'), 'should NOT have .json suffix');
+  assert.strictEqual(mockStore.get('transcript_newVideoId').source, 'captions');
 });
 
 test('fetchTranscript returns null and does not throw when fetch fails', async () => {
-  cleanCache();
-  global.fetch = async () => {
-    throw new Error('network error');
-  };
-
-  const result = await fetchTranscript('failVid');
-  assert.strictEqual(result, null);
-  cleanCache();
+  resetCache();
+  global.fetch = async () => { throw new Error('network error'); };
+  assert.strictEqual(await fetchTranscript('failVid'), null);
 });
 
-// --- transcriptHandler tests ---
+// ─── transcriptHandler tests ─────────────────────────────────────────────────
 
 test('transcriptHandler returns HTTP 200 with { videoId, source, text } on successful transcript', async () => {
-  cleanCache();
+  resetCache();
   const validXml = '<transcript><p>' + 'C'.repeat(100) + '</p></transcript>';
   global.fetch = async (url) => {
-    if (url.includes('timedtext')) {
-      return { ok: true, text: async () => validXml };
-    }
-    // For fetchVideoStats (shouldn't be called here, but guard anyway)
+    if (url.includes('timedtext')) return { ok: true, text: async () => validXml };
     return { ok: true, json: async () => ({ items: [] }) };
   };
 
@@ -152,20 +131,16 @@ test('transcriptHandler returns HTTP 200 with { videoId, source, text } on succe
   await transcriptHandler(req, res);
 
   assert.strictEqual(statusCode, 200);
-  assert.ok(responseBody, 'should have a response body');
   assert.strictEqual(responseBody.videoId, 'handlerVid');
   assert.strictEqual(responseBody.source, 'captions');
   assert.ok(typeof responseBody.text === 'string');
-  cleanCache();
 });
 
 test('transcriptHandler falls back to description when fetchTranscript returns null', async () => {
-  cleanCache();
-  const descriptionText = 'A'.repeat(100); // long enough description
+  resetCache();
+  const descriptionText = 'A'.repeat(100);
   global.fetch = async (url) => {
-    if (url.includes('timedtext')) {
-      return { ok: true, text: async () => '' }; // empty = null transcript
-    }
+    if (url.includes('timedtext')) return { ok: true, text: async () => '' };
     if (url.includes('googleapis.com/youtube/v3/videos')) {
       return {
         ok: true,
@@ -195,20 +170,17 @@ test('transcriptHandler falls back to description when fetchTranscript returns n
   assert.strictEqual(statusCode, 200);
   assert.strictEqual(responseBody.source, 'description');
   assert.strictEqual(responseBody.text, descriptionText);
-  cleanCache();
+  // Verify description was cached under new key format
+  assert.ok(mockStore.has('transcript_descVid'));
+  assert.ok(!mockStore.has('transcript_descVid.json'));
 });
 
 test('transcriptHandler returns HTTP 404 with { error: NO_TRANSCRIPT } when neither transcript nor description available', async () => {
-  cleanCache();
+  resetCache();
   global.fetch = async (url) => {
-    if (url.includes('timedtext')) {
-      return { ok: true, text: async () => '' };
-    }
+    if (url.includes('timedtext')) return { ok: true, text: async () => '' };
     if (url.includes('googleapis.com/youtube/v3/videos')) {
-      return {
-        ok: true,
-        json: async () => ({ items: [] }) // no video found
-      };
+      return { ok: true, json: async () => ({ items: [] }) };
     }
     throw new Error('unexpected fetch: ' + url);
   };
@@ -226,11 +198,4 @@ test('transcriptHandler returns HTTP 404 with { error: NO_TRANSCRIPT } when neit
   assert.strictEqual(statusCode, 404);
   assert.strictEqual(responseBody.error, 'NO_TRANSCRIPT');
   assert.strictEqual(responseBody.videoId, 'noDataVid');
-  cleanCache();
-});
-
-// Final cleanup
-test('cleanup: remove .cache/ directory after tests', () => {
-  cleanCache();
-  assert.ok(!fs.existsSync(CACHE_DIR) || true);
 });
