@@ -15,7 +15,26 @@ const { YouTubeQuotaError } = require('../../youtube');
 // Mock @supabase/supabase-js so db.js does not crash at init
 process.env.SUPABASE_URL = 'https://test.supabase.co';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
-const mockSupabaseClient = { from: () => ({ upsert: async () => ({ error: null }) }) };
+let _mockFromResult;
+function resetMockFrom() {
+  _mockFromResult = {
+    upsert: async () => ({ error: null }),
+    insert: async () => ({ error: null }),
+    select: () => ({
+      eq: () => ({
+        single: async () => ({ data: null, error: null }),
+        maybeSingle: async () => ({ data: null, error: null }),
+        order: () => ({
+          limit: async () => ({ data: [], error: null }),
+        }),
+      }),
+    }),
+  };
+}
+resetMockFrom();
+const mockSupabaseClient = {
+  from: () => _mockFromResult,
+};
 require.cache[require.resolve('@supabase/supabase-js')] = {
   id: require.resolve('@supabase/supabase-js'),
   filename: require.resolve('@supabase/supabase-js'),
@@ -408,6 +427,82 @@ test('POST /api/hints returns 500 JSON when Claude call fails', async () => {
     }
     // If 200 (Claude succeeded with a real key), that is also acceptable
   } finally {
+    server.close();
+  }
+});
+
+// ─── GET /api/courses (Plan 05 — D-06, D-07) ────────────────────────────────
+
+test('GET /api/courses unauthenticated returns 401 JSON', async () => {
+  _clerkGetAuthImpl = () => ({ userId: null });
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/api/courses`);
+    assert.strictEqual(res.status, 401);
+    const body = await res.json();
+    assert.deepStrictEqual(body, { error: 'Authentication required' });
+  } finally {
+    _clerkGetAuthImpl = () => ({ userId: null });
+    server.close();
+  }
+});
+
+test('GET /api/courses authenticated returns 200 with courses array', async () => {
+  _clerkGetAuthImpl = () => ({ userId: 'user_test123' });
+  const mockCourses = [
+    { id: '1', topic: 'math', skill_level: 'beginner', course: { title: 'Math' }, created_at: '2026-04-15T00:00:00Z' },
+  ];
+  _mockFromResult = {
+    ..._mockFromResult,
+    select: () => ({
+      eq: () => ({
+        order: () => ({
+          limit: async () => ({ data: mockCourses, error: null }),
+        }),
+      }),
+    }),
+  };
+
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/api/courses`);
+    assert.strictEqual(res.status, 200);
+    const body = await res.json();
+    assert.ok(Array.isArray(body.courses), 'body.courses should be an array');
+    assert.equal(body.courses.length, 1);
+    assert.equal(body.courses[0].topic, 'math');
+  } finally {
+    _clerkGetAuthImpl = () => ({ userId: null });
+    resetMockFrom();
+    server.close();
+  }
+});
+
+test('GET /api/courses returns 500 when getCourseHistory throws', async () => {
+  _clerkGetAuthImpl = () => ({ userId: 'user_test123' });
+  _mockFromResult = {
+    ..._mockFromResult,
+    select: () => ({
+      eq: () => ({
+        order: () => ({
+          limit: async () => ({ data: null, error: { message: 'db down' } }),
+        }),
+      }),
+    }),
+  };
+
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/api/courses`);
+    assert.strictEqual(res.status, 500);
+    const body = await res.json();
+    assert.equal(body.error, 'Failed to load course history.');
+  } finally {
+    _clerkGetAuthImpl = () => ({ userId: null });
+    resetMockFrom();
     server.close();
   }
 });
