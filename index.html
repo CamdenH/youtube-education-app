@@ -987,6 +987,42 @@
         document.getElementById('error-message').textContent = message;
       }
 
+      // ─── Upgrade Prompt ────────────────────────────────────────────────────────
+      // Uses DOM construction (not innerHTML) to safely insert the upgrade link.
+      // upgradeUrl is server-controlled (CLERK_ACCOUNT_PORTAL_URL env var), not user input.
+
+      function showUpgradePrompt(message, upgradeUrl) {
+        showContentSection('error-section');
+        const el = document.getElementById('error-message');
+        el.textContent = '';
+        const text = document.createTextNode(message + ' ');
+        const link = document.createElement('a');
+        link.href = upgradeUrl || '#';
+        link.textContent = 'Upgrade now';
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        el.appendChild(text);
+        el.appendChild(link);
+      }
+
+      // ─── Usage Gate Preflight ──────────────────────────────────────────────────
+      // Calls GET /api/usage-check before opening EventSource.
+      // Native EventSource cannot read HTTP status codes — this fetch() detects 429.
+
+      async function checkUsageGate() {
+        try {
+          const res = await fetch('/api/usage-check');
+          if (res.status === 429) {
+            const body = await res.json();
+            return { allowed: false, message: body.message, upgradeUrl: body.upgradeUrl };
+          }
+          return { allowed: true };
+        } catch (_) {
+          // Network error — let EventSource handle it (fail open, not fail closed)
+          return { allowed: true };
+        }
+      }
+
       function resolveErrorMessage(data) {
         if (data && data.code === 'QUOTA_EXCEEDED') {
           return 'YouTube API quota exceeded. Try again after midnight Pacific time.';
@@ -1494,7 +1530,7 @@
       let currentSubject = '';
       let currentSkillLevel = '';
 
-      document.getElementById('btn-generate').addEventListener('click', () => {
+      document.getElementById('btn-generate').addEventListener('click', async () => {
         const subject = document.getElementById('subject-input').value.trim();
         if (!subject) return;
 
@@ -1528,6 +1564,15 @@
         if (es) {
           es.close();
           es = null;
+        }
+
+        // Usage gate preflight — detect 429 before EventSource opens (D-10)
+        // Native EventSource cannot read HTTP status codes.
+        const gate = await checkUsageGate();
+        if (!gate.allowed) {
+          showUpgradePrompt(gate.message, gate.upgradeUrl);
+          enableForm();
+          return;
         }
 
         // Open new SSE connection
@@ -1599,14 +1644,19 @@
   <script
     defer
     crossorigin="anonymous"
-    data-clerk-publishable-key="CLERK_PUBLISHABLE_KEY_PLACEHOLDER"
-    src="https://CLERK_FAPI_URL_PLACEHOLDER/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
+    data-clerk-publishable-key="pk_test_dmlhYmxlLWxsYW1hLTE4LmNsZXJrLmFjY291bnRzLmRldiQ"
+    src="https://viable-llama-18.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
     type="text/javascript"
   ></script>
 
   <script>
     window.addEventListener('load', async function () {
-      await Clerk.load();
+      await Clerk.load({
+        signInUrl: 'https://viable-llama-18.accounts.dev/sign-in',
+        signUpUrl: 'https://viable-llama-18.accounts.dev/sign-up',
+        afterSignInUrl: 'https://youtube-education-app-production.up.railway.app/app',
+        afterSignUpUrl: 'https://youtube-education-app-production.up.railway.app/onboarding',
+      });
       if (Clerk.user) {
         Clerk.mountUserButton(document.getElementById('clerk-user-button'));
       }
