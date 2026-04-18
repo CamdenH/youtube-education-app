@@ -26,9 +26,16 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 **Tech stack additions:** Clerk (auth + billing), Supabase (Postgres), Railway (hosting)
 
-- [ ] **Phase 6: Auth** — Clerk integration, protected routes, user identity
-- [ ] **Phase 7: Course Persistence** — Replace file cache with Supabase; per-user course history
+- [x] **Phase 6: Auth** — Clerk integration, protected routes, user identity — completed 2026-04-13
+- [x] **Phase 7: Course Persistence** — Replace file cache with Supabase; per-user course history — completed 2026-04-17
 - [ ] **Phase 8: Billing** — Clerk Billing subscription tiers, usage gates, webhook handling
+  - **Plans:** 5 plans
+  - Plans:
+    - [ ] 08-01-PLAN.md — Migration SQL (blocking) + Wave 0 failing test stubs for db, webhooks, server
+    - [ ] 08-02-PLAN.md — db.js billing functions: checkUsage, incrementGenerationCount, updateUserPlan
+    - [ ] 08-03-PLAN.md — server.js usage gate in /api/course-stream + GET /api/usage-check route + counter increment
+    - [ ] 08-04-PLAN.md — webhooks.js subscriptionItem.active / subscriptionItem.ended handlers
+    - [ ] 08-05-PLAN.md — index.html fetch() preflight + showUpgradePrompt + .env.example
 - [ ] **Phase 9: SaaS UI / Landing Page** — Marketing page, onboarding, pricing page, upgrade prompts
 
 ## Progress
@@ -40,7 +47,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 | 3. Transcript + Course Assembly | v1.0 | 3/3 | Complete | 2026-04-07 |
 | 4. Frontend + Persistence + Export | v1.0 | 4/4 | Complete | 2026-04-11 |
 | 5. Lazy Hints | v1.0 | 3/3 | Complete | 2026-04-12 |
-| 6. Auth | v2.0 | 0/TBD | Not started | - |
-| 7. Course Persistence | v2.0 | 0/TBD | Not started | - |
-| 8. Billing | v2.0 | 0/TBD | Not started | - |
+| 6. Auth | v2.0 | 3/3 | Complete | 2026-04-13 |
+| 7. Course Persistence | v2.0 | 6/6 | Complete | 2026-04-17 |
+| 8. Billing | v2.0 | 0/5 | Not started | - |
 | 9. SaaS UI / Landing Page | v2.0 | 0/TBD | Not started | - |
