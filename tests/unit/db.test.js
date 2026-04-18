@@ -20,6 +20,9 @@ describe('db.js', async () => {
   let mockMaybeSingle;
   let mockLimit;
   let mockOrder;
+  let mockRpc;
+  let mockUpdate;
+  let mockUpdateEq;
 
   // Build a fresh mock supabase chain before each test
   function buildChain() {
@@ -35,12 +38,16 @@ describe('db.js', async () => {
       order: mockOrder,
     }));
     mockSelect = mock.fn(() => ({ eq: mockEq }));
+    mockUpdateEq = mock.fn();
+    mockUpdate = mock.fn(() => ({ eq: mockUpdateEq }));
     mockFrom = mock.fn(() => ({
       upsert: mockUpsert,
       insert: mockInsert,
       select: mockSelect,
+      update: mockUpdate,
     }));
-    return { from: mockFrom };
+    mockRpc = mock.fn();
+    return { from: mockFrom, rpc: mockRpc };
   }
 
   beforeEach(async () => {
@@ -246,6 +253,117 @@ describe('db.js', async () => {
       () => db.getCourseHistory('u'),
       (err) => {
         assert.ok(err.message.includes('[db] getCourseHistory failed'), `got: ${err.message}`);
+        return true;
+      }
+    );
+  });
+
+  it('Test 15: checkUsage returns allowed=true for free user with 0 count within 30-day period', async () => {
+    const now = new Date();
+    const recentPeriodStart = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(); // 5 days ago
+    mockSingle.mock.mockImplementation(() => Promise.resolve({
+      data: { plan: 'free', generation_count: 0, period_start: recentPeriodStart },
+      error: null,
+    }));
+    const result = await db.checkUsage('user_abc');
+    assert.equal(result.allowed, true);
+    assert.equal(result.limit, 1);
+    assert.equal(result.count, 0);
+  });
+
+  it('Test 16: checkUsage returns allowed=false for free user with count=1 (at limit)', async () => {
+    const now = new Date();
+    const recentPeriodStart = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString();
+    mockSingle.mock.mockImplementation(() => Promise.resolve({
+      data: { plan: 'free', generation_count: 1, period_start: recentPeriodStart },
+      error: null,
+    }));
+    const result = await db.checkUsage('user_abc');
+    assert.equal(result.allowed, false);
+    assert.equal(result.limit, 1);
+    assert.equal(result.count, 1);
+  });
+
+  it('Test 17: checkUsage returns allowed=true with limit=20 for early_access user with count=5', async () => {
+    const now = new Date();
+    const recentPeriodStart = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString();
+    mockSingle.mock.mockImplementation(() => Promise.resolve({
+      data: { plan: 'early_access', generation_count: 5, period_start: recentPeriodStart },
+      error: null,
+    }));
+    const result = await db.checkUsage('user_abc');
+    assert.equal(result.allowed, true);
+    assert.equal(result.limit, 20);
+    assert.equal(result.count, 5);
+  });
+
+  it('Test 18: checkUsage resets count when period_start is >30 days ago and returns allowed=true', async () => {
+    const staleStart = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(); // 35 days ago
+    mockSingle.mock.mockImplementation(() => Promise.resolve({
+      data: { plan: 'free', generation_count: 1, period_start: staleStart },
+      error: null,
+    }));
+    // The update().eq() path is called for the reset
+    mockUpdateEq.mock.mockImplementation(() => Promise.resolve({ error: null }));
+    const result = await db.checkUsage('user_abc');
+    assert.equal(result.allowed, true);
+    assert.equal(result.count, 0);
+    // Verify update was called for the reset
+    assert.equal(mockUpdate.mock.calls.length, 1, 'update() should be called for period reset');
+    const [updateData] = mockUpdate.mock.calls[0].arguments;
+    assert.equal(updateData.generation_count, 0, 'reset sets generation_count to 0');
+    assert.ok(updateData.period_start, 'reset sets a new period_start');
+  });
+
+  it('Test 19: checkUsage throws with "[db] checkUsage failed" when supabase select returns error', async () => {
+    mockSingle.mock.mockImplementation(() => Promise.resolve({ data: null, error: { message: 'connection refused' } }));
+    await assert.rejects(
+      () => db.checkUsage('user_abc'),
+      (err) => {
+        assert.ok(err.message.includes('[db] checkUsage failed'), `got: ${err.message}`);
+        return true;
+      }
+    );
+  });
+
+  it('Test 20: incrementGenerationCount calls supabase.rpc with correct function name and args', async () => {
+    mockRpc.mock.mockImplementation(() => Promise.resolve({ error: null }));
+    await db.incrementGenerationCount('user_abc');
+    assert.equal(mockRpc.mock.calls.length, 1);
+    const [fnName, args] = mockRpc.mock.calls[0].arguments;
+    assert.equal(fnName, 'increment_generation_count');
+    assert.deepEqual(args, { p_clerk_id: 'user_abc' });
+  });
+
+  it('Test 21: incrementGenerationCount throws with "[db] incrementGenerationCount failed" when rpc returns error', async () => {
+    mockRpc.mock.mockImplementation(() => Promise.resolve({ error: { message: 'rpc failed' } }));
+    await assert.rejects(
+      () => db.incrementGenerationCount('user_abc'),
+      (err) => {
+        assert.ok(err.message.includes('[db] incrementGenerationCount failed'), `got: ${err.message}`);
+        return true;
+      }
+    );
+  });
+
+  it('Test 22: updateUserPlan calls update on users table with correct plan and clerk_id', async () => {
+    mockUpdateEq.mock.mockImplementation(() => Promise.resolve({ error: null }));
+    await db.updateUserPlan('user_abc', 'early_access');
+    assert.equal(mockFrom.mock.calls[0].arguments[0], 'users');
+    assert.equal(mockUpdate.mock.calls.length, 1);
+    const [updateData] = mockUpdate.mock.calls[0].arguments;
+    assert.deepEqual(updateData, { plan: 'early_access' });
+    const [col, val] = mockUpdateEq.mock.calls[0].arguments;
+    assert.equal(col, 'clerk_id');
+    assert.equal(val, 'user_abc');
+  });
+
+  it('Test 23: updateUserPlan throws with "[db] updateUserPlan failed" when supabase returns error', async () => {
+    mockUpdateEq.mock.mockImplementation(() => Promise.resolve({ error: { message: 'permission denied' } }));
+    await assert.rejects(
+      () => db.updateUserPlan('user_abc', 'early_access'),
+      (err) => {
+        assert.ok(err.message.includes('[db] updateUserPlan failed'), `got: ${err.message}`);
         return true;
       }
     );
