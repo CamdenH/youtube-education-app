@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: SaaS
 status: Active
-stopped_at: Phase 8 planned — 5 plans in 4 waves, ready to execute
+stopped_at: Phase 8 Plan 01 — paused at human-action checkpoint (Task 2 — apply migration to Supabase)
 last_updated: "2026-04-18T00:00:00.000Z"
 progress:
   total_phases: 4
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** Surface the best YouTube content for learning a subject with maximum curation precision — the scoring algorithm and Claude prompts are what separate this from a YouTube playlist.
-**Current focus:** v2.0 SaaS — Phase 8 (Billing — Clerk Billing subscription tiers) — Ready to execute
+**Current focus:** v2.0 SaaS — Phase 8 (Billing — Clerk Billing subscription tiers) — Plan 01 in progress, paused at checkpoint
 
 ## Current Position
 
 Phase 6 (Auth) and Phase 7 (Course Persistence) complete.
-Phase 8 (Billing) planned — 5 plans in 4 waves, ready to execute.
+Phase 8 (Billing) in progress — Plan 01 paused at human-action checkpoint (apply migration to Supabase).
 
 ## Performance Metrics
 
@@ -64,5 +64,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-18
-Stopped at: Phase 8 planned — 5 plans verified, ready to execute
-Resume: `/gsd-execute-phase 8`
+Stopped at: Phase 8 Plan 01 — Task 1 committed (6bbe3da), paused at human-action checkpoint (apply supabase/migrations/08_billing.sql)
+Resume: After applying migration, type "migration applied" to continue with Tasks 3–5
