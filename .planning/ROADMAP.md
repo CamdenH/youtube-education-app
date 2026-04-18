@@ -31,8 +31,8 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [ ] **Phase 8: Billing** — Clerk Billing subscription tiers, usage gates, webhook handling
   - **Plans:** 5 plans
   - Plans:
-    - [ ] 08-01-PLAN.md — Migration SQL (blocking) + Wave 0 failing test stubs for db, webhooks, server
-    - [ ] 08-02-PLAN.md — db.js billing functions: checkUsage, incrementGenerationCount, updateUserPlan
+    - [x] 08-01-PLAN.md — Migration SQL (blocking) + Wave 0 failing test stubs for db, webhooks, server
+    - [x] 08-02-PLAN.md — db.js billing functions: checkUsage, incrementGenerationCount, updateUserPlan
     - [ ] 08-03-PLAN.md — server.js usage gate in /api/course-stream + GET /api/usage-check route + counter increment
     - [ ] 08-04-PLAN.md — webhooks.js subscriptionItem.active / subscriptionItem.ended handlers
     - [ ] 08-05-PLAN.md — index.html fetch() preflight + showUpgradePrompt + .env.example
@@ -49,5 +49,5 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 | 5. Lazy Hints | v1.0 | 3/3 | Complete | 2026-04-12 |
 | 6. Auth | v2.0 | 3/3 | Complete | 2026-04-13 |
 | 7. Course Persistence | v2.0 | 6/6 | Complete | 2026-04-17 |
-| 8. Billing | v2.0 | 0/5 | Not started | - |
+| 8. Billing | v2.0 | 2/5 | In progress | - |
 | 9. SaaS UI / Landing Page | v2.0 | 0/TBD | Not started | - |
