@@ -69,6 +69,33 @@ async function checkUsage(clerkId) {
   return { allowed: count < limit, limit, count };
 }
 
+/**
+ * Atomically increment the generation counter for the user.
+ * Uses a Postgres function (RPC) to avoid TOCTOU race on concurrent requests (D-07).
+ *
+ * @param {string} clerkId - Clerk user ID
+ */
+async function incrementGenerationCount(clerkId) {
+  const { error } = await supabase.rpc('increment_generation_count', { p_clerk_id: clerkId });
+  if (error) throw new Error(`[db] incrementGenerationCount failed: ${error.message}`);
+}
+
+/**
+ * Set the plan field on the users row for the given Clerk user ID.
+ * Called by the webhook handler to keep users.plan in sync with Clerk Billing.
+ * Plain UPDATE — naturally idempotent for duplicate webhook events (D-13).
+ *
+ * @param {string} clerkId - Clerk user ID (from evt.data.payerId)
+ * @param {string} plan - 'free' or 'early_access'
+ */
+async function updateUserPlan(clerkId, plan) {
+  const { error } = await supabase
+    .from('users')
+    .update({ plan })
+    .eq('clerk_id', clerkId);
+  if (error) throw new Error(`[db] updateUserPlan failed: ${error.message}`);
+}
+
 async function cacheGet(key) {
   const { data, error } = await supabase
     .from('cache')
@@ -124,4 +151,15 @@ async function getCourseHistory(userId) {
   return data;
 }
 
-module.exports = { supabase, getOrCreateUser, getUserPlan, checkUsage, cacheGet, cacheSet, saveCourse, getCourseHistory };
+module.exports = {
+  supabase,
+  getOrCreateUser,
+  getUserPlan,
+  checkUsage,
+  incrementGenerationCount,
+  updateUserPlan,
+  cacheGet,
+  cacheSet,
+  saveCourse,
+  getCourseHistory,
+};
