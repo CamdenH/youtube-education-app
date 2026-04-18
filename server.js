@@ -9,7 +9,7 @@ const { clerkWebhookHandler } = require('./webhooks');
 const { requireUser } = require('./auth');
 const { courseStreamHandler, sendEvent } = require('./sse');
 const { transcriptHandler } = require('./transcript');
-const { saveCourse, getCourseHistory } = require('./db');
+const { saveCourse, getCourseHistory, checkUsage, incrementGenerationCount } = require('./db');
 const { YouTubeQuotaError } = require('./youtube');
 const { callClaude, parseClaudeJSON } = require('./claude');
 const Anthropic = require('@anthropic-ai/sdk');
@@ -43,7 +43,8 @@ app.get('/app', (req, res, next) => {
   const { userId } = getAuth(req);
   if (userId) return next();
   const signInUrl = new URL(process.env.CLERK_SIGN_IN_URL);
-  signInUrl.searchParams.set('redirect_url', `${req.protocol}://${req.hostname}/app`);
+  const appBase = process.env.APP_URL || `${req.protocol}://${req.hostname}`;
+  signInUrl.searchParams.set('redirect_url', `${appBase}/app`);
   return res.redirect(signInUrl.toString());
 }, (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
@@ -99,6 +100,28 @@ app.get('/api/courses', requireUser, async (req, res) => {
     console.error('[courses] getCourseHistory failed:', err.message);
     return res.status(500).json({ error: 'Failed to load course history.' });
   }
+});
+
+// STEP 8c: Usage gate preflight check (D-08, D-09)
+// Frontend calls GET /api/usage-check with fetch() before opening EventSource.
+// Native EventSource cannot read HTTP status codes — this route exposes the 429.
+app.get('/api/usage-check', requireUser, async (req, res) => {
+  let usageResult;
+  try {
+    usageResult = await checkUsage(req.userId);
+  } catch (err) {
+    console.error('[usage-check] checkUsage failed:', err.message);
+    return res.status(500).json({ error: 'Usage check failed.' });
+  }
+  if (!usageResult.allowed) {
+    const limitWord = usageResult.limit === 1 ? 'course' : 'courses';
+    return res.status(429).json({
+      error: 'usage_limit_reached',
+      message: `You've used your ${usageResult.limit} free ${limitWord} this month. Upgrade to Early Access for 20/month.`,
+      upgradeUrl: process.env.CLERK_ACCOUNT_PORTAL_URL,
+    });
+  }
+  return res.status(200).json({ allowed: true });
 });
 
 // STEP 9: Other API routes (transcript, hints) — keep existing
