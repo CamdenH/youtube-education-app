@@ -595,12 +595,12 @@ function showUpgradePrompt(message, upgradeUrl) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED via defensive fallback)
 
-1. **Exact webhook payload structure (payerId field name)**
+1. **Exact webhook payload structure (payerId field name)** — RESOLVED
    - What we know: Context7 `CommerceSubscriptionItem` type documents `payerId` as `undefined | string`.
-   - What's unclear: Whether the actual JSON delivered to webhooks uses camelCase (`payerId`) or snake_case (`payer_id`). Clerk's webhook payloads for `user.created` use snake_case (`email_addresses`, not `emailAddresses`).
-   - Recommendation: Log the raw webhook payload in development by temporarily adding `console.log(JSON.stringify(evt.data))` in the webhook handler and trigger a test subscription in Clerk Dashboard. Do this in Wave 0 (test setup) before implementing the update path.
+   - What was unclear: Whether the actual JSON delivered to webhooks uses camelCase (`payerId`) or snake_case (`payer_id`). Clerk's webhook payloads for `user.created` use snake_case (`email_addresses`, not `emailAddresses`).
+   - Resolution: Checker revision identified this as a live risk. Rather than requiring a Clerk Dashboard test event to confirm, the implementation now uses a defensive fallback: `const payerId = evt.data.payerId ?? evt.data.payer_id`. This handles both casing forms without any behaviour change if the actual delivery is camelCase. Applied in Plan 04 Task 1 (both `subscriptionItem.active` and `subscriptionItem.ended` handlers). Test stubs in Plan 01 Task 4 use `payerId` (TypeScript type) and include a comment noting the snake_case fallback is handled defensively in the implementation.
 
 2. **Should `/api/usage-check` be GET or POST?**
    - What we know: It's a read-only operation; GET is correct REST semantics.
