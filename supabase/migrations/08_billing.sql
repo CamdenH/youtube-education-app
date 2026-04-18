@@ -1,5 +1,13 @@
 -- Phase 8: Billing — add usage tracking columns and atomic increment function
--- Safe to run multiple times (ADD COLUMN IF NOT EXISTS, CREATE OR REPLACE FUNCTION).
+-- Safe to run multiple times (CREATE IF NOT EXISTS, ADD COLUMN IF NOT EXISTS, CREATE OR REPLACE FUNCTION).
+
+-- Create users table if it doesn't already exist (idempotent — safe if Phase 6 created it manually).
+CREATE TABLE IF NOT EXISTS users (
+  clerk_id   TEXT        PRIMARY KEY,
+  email      TEXT,
+  plan       TEXT        NOT NULL DEFAULT 'free',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS generation_count INT NOT NULL DEFAULT 0,
