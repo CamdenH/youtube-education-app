@@ -14,10 +14,12 @@ const express = require('express');
 process.env.SUPABASE_URL = 'https://test.supabase.co';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
 let _mockFromResult;
+let _mockRpcImpl = async () => ({ error: null });
 function resetMockFrom() {
   _mockFromResult = {
     upsert: async () => ({ error: null }),
     insert: async () => ({ error: null }),
+    update: () => ({ eq: async () => ({ error: null }) }),
     select: () => ({
       eq: () => ({
         single: async () => ({ data: null, error: null }),
@@ -32,6 +34,7 @@ function resetMockFrom() {
 resetMockFrom();
 const mockSupabaseClient = {
   from: () => _mockFromResult,
+  rpc: (...args) => _mockRpcImpl(...args),
 };
 require.cache[require.resolve('@supabase/supabase-js')] = {
   id: require.resolve('@supabase/supabase-js'),
@@ -502,6 +505,164 @@ test('GET /api/courses returns 500 when getCourseHistory throws', async () => {
     assert.strictEqual(res.status, 500);
     const body = await res.json();
     assert.equal(body.error, 'Failed to load course history.');
+  } finally {
+    _clerkGetAuthImpl = () => ({ userId: null });
+    resetMockFrom();
+    server.close();
+  }
+});
+
+// ─── Phase 8: Usage gate and usage-check endpoint ────────────────────────────
+
+test('GET /api/usage-check unauthenticated returns 401', async () => {
+  _clerkGetAuthImpl = () => ({ userId: null });
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/api/usage-check`);
+    assert.strictEqual(res.status, 401);
+    const body = await res.json();
+    assert.ok(body.error, 'Response must have error field');
+  } finally {
+    _clerkGetAuthImpl = () => ({ userId: null });
+    server.close();
+  }
+});
+
+test('GET /api/usage-check authenticated when under limit returns 200', async () => {
+  _clerkGetAuthImpl = () => ({ userId: 'user_test123' });
+  // Mock checkUsage: free user, count=0, recent period_start
+  const recentStart = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+  _mockFromResult = {
+    ..._mockFromResult,
+    update: () => ({ eq: async () => ({ error: null }) }),
+    select: () => ({
+      eq: () => ({
+        single: async () => ({
+          data: { plan: 'free', generation_count: 0, period_start: recentStart },
+          error: null,
+        }),
+        maybeSingle: async () => ({ data: null, error: null }),
+        order: () => ({ limit: async () => ({ data: [], error: null }) }),
+      }),
+    }),
+  };
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/api/usage-check`);
+    assert.strictEqual(res.status, 200);
+  } finally {
+    _clerkGetAuthImpl = () => ({ userId: null });
+    resetMockFrom();
+    server.close();
+  }
+});
+
+test('GET /api/usage-check authenticated when over limit returns 429 with correct JSON shape', async () => {
+  _clerkGetAuthImpl = () => ({ userId: 'user_test123' });
+  process.env.CLERK_ACCOUNT_PORTAL_URL = 'https://test.accounts.dev/user';
+  const recentStart = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+  _mockFromResult = {
+    ..._mockFromResult,
+    update: () => ({ eq: async () => ({ error: null }) }),
+    select: () => ({
+      eq: () => ({
+        single: async () => ({
+          data: { plan: 'free', generation_count: 1, period_start: recentStart },
+          error: null,
+        }),
+        maybeSingle: async () => ({ data: null, error: null }),
+        order: () => ({ limit: async () => ({ data: [], error: null }) }),
+      }),
+    }),
+  };
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/api/usage-check`);
+    assert.strictEqual(res.status, 429);
+    const body = await res.json();
+    assert.ok(body.error === 'usage_limit_reached', `Expected usage_limit_reached, got: ${body.error}`);
+    assert.ok(typeof body.message === 'string' && body.message.length > 0, 'message must be a non-empty string');
+    assert.ok(typeof body.upgradeUrl === 'string' && body.upgradeUrl.length > 0, 'upgradeUrl must be a non-empty string');
+  } finally {
+    _clerkGetAuthImpl = () => ({ userId: null });
+    resetMockFrom();
+    server.close();
+  }
+});
+
+test('GET /api/course-stream returns 429 JSON (not SSE) when usage gate fires', async () => {
+  _clerkGetAuthImpl = () => ({ userId: 'user_test123' });
+  process.env.CLERK_ACCOUNT_PORTAL_URL = 'https://test.accounts.dev/user';
+  const recentStart = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+  _mockFromResult = {
+    ..._mockFromResult,
+    update: () => ({ eq: async () => ({ error: null }) }),
+    select: () => ({
+      eq: () => ({
+        single: async () => ({
+          data: { plan: 'free', generation_count: 1, period_start: recentStart },
+          error: null,
+        }),
+        maybeSingle: async () => ({ data: null, error: null }),
+        order: () => ({ limit: async () => ({ data: [], error: null }) }),
+      }),
+    }),
+  };
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/api/course-stream?subject=math&skill_level=beginner`);
+    assert.strictEqual(res.status, 429, 'Gate must return 429 before SSE headers');
+    const contentType = res.headers.get('content-type') || '';
+    assert.ok(contentType.includes('application/json'), `Expected JSON content-type, got: ${contentType}`);
+    const body = await res.json();
+    assert.ok(body.error === 'usage_limit_reached', `Expected usage_limit_reached in body, got: ${JSON.stringify(body)}`);
+    assert.ok(typeof body.upgradeUrl === 'string', 'upgradeUrl must be present');
+  } finally {
+    _clerkGetAuthImpl = () => ({ userId: null });
+    resetMockFrom();
+    server.close();
+  }
+});
+
+test('GET /api/course-stream passes gate and opens SSE when usage is within limit', async () => {
+  _clerkGetAuthImpl = () => ({ userId: 'user_test123' });
+  const recentStart = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+  _mockFromResult = {
+    ..._mockFromResult,
+    update: () => ({ eq: async () => ({ error: null }) }),
+    select: () => ({
+      eq: () => ({
+        single: async () => ({
+          data: { plan: 'free', generation_count: 0, period_start: recentStart },
+          error: null,
+        }),
+        maybeSingle: async () => ({ data: null, error: null }),
+        order: () => ({ limit: async () => ({ data: [], error: null }) }),
+      }),
+    }),
+  };
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    let res;
+    try {
+      res = await fetch(
+        `http://localhost:${port}/api/course-stream?subject=math&skill_level=beginner`,
+        { signal: controller.signal }
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    assert.notStrictEqual(res.status, 429, 'Gate must not block when under limit');
+    const contentType = res.headers.get('content-type') || '';
+    assert.ok(contentType.includes('text/event-stream'), `Expected SSE, got: ${contentType}`);
+    controller.abort();
   } finally {
     _clerkGetAuthImpl = () => ({ userId: null });
     resetMockFrom();
