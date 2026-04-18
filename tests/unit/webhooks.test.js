@@ -7,6 +7,7 @@ describe('webhooks.js', async () => {
   let webhooks;
   let mockVerifyWebhook;
   let mockGetOrCreateUser;
+  let mockUpdateUserPlan;
 
   // Build mock req/res helpers
   function buildResMock() {
@@ -53,6 +54,7 @@ describe('webhooks.js', async () => {
 
     // Mock ./db
     mockGetOrCreateUser = mock.fn();
+    mockUpdateUserPlan = mock.fn();
     const dbPath = require.resolve('../../db.js');
     require.cache[dbPath] = {
       id: dbPath,
@@ -62,6 +64,7 @@ describe('webhooks.js', async () => {
         getOrCreateUser: mockGetOrCreateUser,
         supabase: {},
         getUserPlan: mock.fn(),
+        updateUserPlan: mockUpdateUserPlan,
       },
     };
 
@@ -163,5 +166,122 @@ describe('webhooks.js', async () => {
     assert.equal(clerkId, 'user_abc123');
     assert.equal(email, null, `Expected email to be null, got ${email}`);
     assert.equal(res._status, 200);
+  });
+
+  it('Test 6: subscriptionItem.active with early_access slug calls updateUserPlan(payerId, early_access)', async () => {
+    mockVerifyWebhook.mock.mockImplementation(() => Promise.resolve({
+      type: 'subscriptionItem.active',
+      data: {
+        payerId: 'user_abc123',
+        plan: { slug: 'early_access' },
+      },
+    }));
+    mockUpdateUserPlan.mock.mockImplementation(() => Promise.resolve());
+    const req = buildReqMock();
+    const res = buildResMock();
+    await webhooks.clerkWebhookHandler(req, res);
+    assert.equal(mockUpdateUserPlan.mock.calls.length, 1);
+    const [clerkId, plan] = mockUpdateUserPlan.mock.calls[0].arguments;
+    assert.equal(clerkId, 'user_abc123');
+    assert.equal(plan, 'early_access');
+    assert.equal(res._status, 200);
+  });
+
+  it('Test 7: subscriptionItem.active with non-early_access slug does NOT call updateUserPlan', async () => {
+    mockVerifyWebhook.mock.mockImplementation(() => Promise.resolve({
+      type: 'subscriptionItem.active',
+      data: {
+        payerId: 'user_abc123',
+        plan: { slug: 'free' },
+      },
+    }));
+    const req = buildReqMock();
+    const res = buildResMock();
+    await webhooks.clerkWebhookHandler(req, res);
+    assert.equal(mockUpdateUserPlan.mock.calls.length, 0, 'updateUserPlan must NOT be called for non-early_access plan');
+    assert.equal(res._status, 200);
+  });
+
+  it('Test 8: subscriptionItem.active with missing payerId skips DB write and returns 200', async () => {
+    mockVerifyWebhook.mock.mockImplementation(() => Promise.resolve({
+      type: 'subscriptionItem.active',
+      data: {
+        payerId: undefined,
+        plan: { slug: 'early_access' },
+      },
+    }));
+    const req = buildReqMock();
+    const res = buildResMock();
+    await webhooks.clerkWebhookHandler(req, res);
+    assert.equal(mockUpdateUserPlan.mock.calls.length, 0, 'updateUserPlan must NOT be called when payerId is undefined');
+    assert.equal(res._status, 200);
+  });
+
+  it('Test 9: subscriptionItem.ended with early_access slug calls updateUserPlan(payerId, free)', async () => {
+    mockVerifyWebhook.mock.mockImplementation(() => Promise.resolve({
+      type: 'subscriptionItem.ended',
+      data: {
+        payerId: 'user_abc123',
+        plan: { slug: 'early_access' },
+      },
+    }));
+    mockUpdateUserPlan.mock.mockImplementation(() => Promise.resolve());
+    const req = buildReqMock();
+    const res = buildResMock();
+    await webhooks.clerkWebhookHandler(req, res);
+    assert.equal(mockUpdateUserPlan.mock.calls.length, 1);
+    const [clerkId, plan] = mockUpdateUserPlan.mock.calls[0].arguments;
+    assert.equal(clerkId, 'user_abc123');
+    assert.equal(plan, 'free');
+    assert.equal(res._status, 200);
+  });
+
+  it('Test 10: subscriptionItem.ended with non-early_access slug does NOT call updateUserPlan', async () => {
+    mockVerifyWebhook.mock.mockImplementation(() => Promise.resolve({
+      type: 'subscriptionItem.ended',
+      data: {
+        payerId: 'user_abc123',
+        plan: { slug: 'free' },
+      },
+    }));
+    const req = buildReqMock();
+    const res = buildResMock();
+    await webhooks.clerkWebhookHandler(req, res);
+    assert.equal(mockUpdateUserPlan.mock.calls.length, 0, 'updateUserPlan must NOT be called for non-early_access plan end');
+    assert.equal(res._status, 200);
+  });
+
+  it('Test 11: subscriptionItem.ended with missing payerId skips DB write and returns 200', async () => {
+    mockVerifyWebhook.mock.mockImplementation(() => Promise.resolve({
+      type: 'subscriptionItem.ended',
+      data: {
+        payerId: undefined,
+        plan: { slug: 'early_access' },
+      },
+    }));
+    const req = buildReqMock();
+    const res = buildResMock();
+    await webhooks.clerkWebhookHandler(req, res);
+    assert.equal(mockUpdateUserPlan.mock.calls.length, 0);
+    assert.equal(res._status, 200);
+  });
+
+  it('Test 12: duplicate subscriptionItem.active events are idempotent (updateUserPlan called twice, both succeed)', async () => {
+    mockVerifyWebhook.mock.mockImplementation(() => Promise.resolve({
+      type: 'subscriptionItem.active',
+      data: {
+        payerId: 'user_abc123',
+        plan: { slug: 'early_access' },
+      },
+    }));
+    mockUpdateUserPlan.mock.mockImplementation(() => Promise.resolve());
+    const req = buildReqMock();
+    const res1 = buildResMock();
+    const res2 = buildResMock();
+    await webhooks.clerkWebhookHandler(req, res1);
+    await webhooks.clerkWebhookHandler(req, res2);
+    assert.equal(mockUpdateUserPlan.mock.calls.length, 2, 'updateUserPlan called on both events');
+    assert.equal(res1._status, 200);
+    assert.equal(res2._status, 200);
   });
 });
