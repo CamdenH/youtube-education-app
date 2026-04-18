@@ -16,13 +16,16 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
 let _mockFromResult;
 let _mockRpcImpl = async () => ({ error: null });
 function resetMockFrom() {
+  // Default single() returns a free user under the limit so checkUsage passes.
+  // Tests that need over-limit or error states override _mockFromResult directly.
+  const defaultUserRow = { plan: 'free', generation_count: 0, period_start: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() };
   _mockFromResult = {
     upsert: async () => ({ error: null }),
     insert: async () => ({ error: null }),
     update: () => ({ eq: async () => ({ error: null }) }),
     select: () => ({
       eq: () => ({
-        single: async () => ({ data: null, error: null }),
+        single: async () => ({ data: defaultUserRow, error: null }),
         maybeSingle: async () => ({ data: null, error: null }),
         order: () => ({
           limit: async () => ({ data: [], error: null }),

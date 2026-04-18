@@ -65,11 +65,36 @@ app.get('/api/course-stream', requireUser, async (req, res) => {
     return res.status(400).json({ error: 'skill_level must be one of: beginner, intermediate, advanced, all levels' });
   }
 
+  // USAGE GATE (D-08) — must fire before SSE headers are sent
+  // checkUsage reads users.plan, generation_count, and period_start from Supabase
+  let usageResult;
+  try {
+    usageResult = await checkUsage(req.userId);
+  } catch (err) {
+    console.error('[course-stream] usage check failed:', err.message);
+    return res.status(500).json({ error: 'Usage check failed.' });
+  }
+  if (!usageResult.allowed) {
+    const limitWord = usageResult.limit === 1 ? 'course' : 'courses';
+    return res.status(429).json({
+      error: 'usage_limit_reached',
+      message: `You've used your ${usageResult.limit} free ${limitWord} this month. Upgrade to Early Access for 20/month.`,
+      upgradeUrl: process.env.CLERK_ACCOUNT_PORTAL_URL,
+    });
+  }
+
   try {
     const course = await courseStreamHandler(req, res);
     if (course) {
       try {
         await saveCourse(req.userId, subject, skill_level, course);
+        // D-07: Increment counter after successful save — atomic RPC prevents double-count
+        try {
+          await incrementGenerationCount(req.userId);
+        } catch (incErr) {
+          // Log but do not fail — course was already delivered to the user
+          console.error('[course-stream] incrementGenerationCount failed:', incErr.message);
+        }
       } catch (saveErr) {
         console.error('[course-stream] saveCourse failed:', saveErr.message);
       }
