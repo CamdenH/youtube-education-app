@@ -33,6 +33,42 @@ async function getUserPlan(clerkId) {
   return data.plan;
 }
 
+/**
+ * Check whether the user is within their monthly generation limit.
+ * Resets the counter if the 30-day period has expired (D-06).
+ *
+ * @param {string} clerkId - Clerk user ID from req.userId
+ * @returns {Promise<{allowed: boolean, limit: number, count: number}>}
+ */
+async function checkUsage(clerkId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('plan, generation_count, period_start')
+    .eq('clerk_id', clerkId)
+    .single();
+  if (error) throw new Error(`[db] checkUsage failed: ${error.message}`);
+
+  const plan = data.plan || 'free';
+  const limit = plan === 'early_access' ? 20 : 1;
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const periodStart = data.period_start ? new Date(data.period_start).getTime() : 0;
+
+  let count = data.generation_count || 0;
+
+  // D-06: Reset counter if the 30-day period has expired
+  if (now - periodStart > thirtyDaysMs) {
+    const { error: resetErr } = await supabase
+      .from('users')
+      .update({ generation_count: 0, period_start: new Date().toISOString() })
+      .eq('clerk_id', clerkId);
+    if (resetErr) throw new Error(`[db] checkUsage reset failed: ${resetErr.message}`);
+    count = 0;
+  }
+
+  return { allowed: count < limit, limit, count };
+}
+
 async function cacheGet(key) {
   const { data, error } = await supabase
     .from('cache')
@@ -88,4 +124,4 @@ async function getCourseHistory(userId) {
   return data;
 }
 
-module.exports = { supabase, getOrCreateUser, getUserPlan, cacheGet, cacheSet, saveCourse, getCourseHistory };
+module.exports = { supabase, getOrCreateUser, getUserPlan, checkUsage, cacheGet, cacheSet, saveCourse, getCourseHistory };
