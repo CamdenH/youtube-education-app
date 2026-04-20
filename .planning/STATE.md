@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: SaaS
 status: Active
-stopped_at: Phase 8 Plan 04 — complete
-last_updated: "2026-04-18T23:18:36Z"
+stopped_at: Phase 8 — complete
+last_updated: "2026-04-20T00:00:00Z"
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 19
-  completed_plans: 18
-  percent: 63
+  completed_plans: 19
+  percent: 75
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** Surface the best YouTube content for learning a subject with maximum curation precision — the scoring algorithm and Claude prompts are what separate this from a YouTube playlist.
-**Current focus:** v2.0 SaaS — Phase 8 (Billing — Clerk Billing subscription tiers) — Plan 04 complete, Plan 05 (index.html upgrade prompt) next
+**Current focus:** v2.0 SaaS — Phase 8 (Billing) complete. Phase 9 (SaaS UI / Landing Page) next.
 
 ## Current Position
 
-Phase 6 (Auth) and Phase 7 (Course Persistence) complete.
-Phase 8 (Billing) in progress — Plan 04 complete (subscriptionItem.active and subscriptionItem.ended handlers in webhooks.js; updateUserPlan imported from db.js; all 12 webhooks.test.js tests GREEN, 183 total passing).
+Phases 6 (Auth), 7 (Course Persistence), and 8 (Billing) complete.
+Phase 8 all 5 plans done — migration, db.js billing functions, server.js usage gate, webhooks.js subscription handlers, index.html fetch() preflight + upgrade prompt. 183 tests passing.
 
 ## Performance Metrics
 
@@ -33,11 +33,11 @@ Phase 8 (Billing) in progress — Plan 04 complete (subscriptionItem.active and 
 - 5 phases, 18 plans, ~2,776 LOC, 124+ tests
 - Timeline: 2026-03-18 → 2026-04-12 (25 days)
 
-**v2.0 SaaS (in progress):**
+**v2.0 SaaS (phases 6–8 complete):**
 - Phase 6 (Auth): 3 plans, Clerk integration, protected routes, landing page, onboarding
 - Phase 7 (Course Persistence): 6 plans, Supabase cache + courses tables, async cache rewrite, /api/courses route, API-backed history UI
-- Phase 8 (Billing): 5 plans planned — migration, db.js functions, server.js gate, webhooks.js, index.html upgrade prompt
-- 176 tests passing (db billing functions turned 9 RED stubs GREEN)
+- Phase 8 (Billing): 5 plans — migration + RPC function, db.js billing functions, server.js usage gate, webhooks.js subscription handlers, index.html fetch() preflight + upgrade prompt
+- 183 tests passing
 
 ## Accumulated Context
 
@@ -62,10 +62,10 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 8: Confirm Clerk Billing webhook endpoint and secret setup on Railway before executing Plan 01 checkpoint
+None.
 
 ## Session Continuity
 
-Last session: 2026-04-18
-Stopped at: Completed 08-04-PLAN.md
-Resume: Execute 08-05-PLAN.md — index.html fetch() preflight + showUpgradePrompt + .env.example
+Last session: 2026-04-20
+Stopped at: Phase 8 complete — all 5 plans done, 183 tests passing
+Resume: Phase 9 (SaaS UI / Landing Page) — run /gsd-discuss-phase 9
