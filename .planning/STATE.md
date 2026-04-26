@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: SaaS
 status: Active
-stopped_at: Phase 9 plan 01 complete — plan 02 (Wave 1 routing) next
-last_updated: "2026-04-26T00:08:00Z"
+stopped_at: Phase 9 plan 02 complete — plan 03 (Wave 2 landing.html) next
+last_updated: "2026-04-26T19:07:07Z"
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 24
-  completed_plans: 20
-  percent: 79
+  completed_plans: 21
+  percent: 83
 ---
 
 # Project State
@@ -26,7 +26,8 @@ See: .planning/PROJECT.md (updated 2026-04-12)
 
 Phases 6 (Auth), 7 (Course Persistence), and 8 (Billing) complete.
 Phase 8 all 5 plans done — migration, db.js billing functions, server.js usage gate, webhooks.js subscription handlers, index.html fetch() preflight + upgrade prompt. 183 tests passing.
-Phase 9 plan 01 done — Wave 0 TDD RED tests added (2 of 3 fail correctly). Plan 02 (Wave 1: server.js routing) is next.
+Phase 9 plan 01 done — Wave 0 TDD RED tests added (2 of 3 fail correctly).
+Phase 9 plan 02 done — GET /pricing route (public) and GET /onboarding auth gate (getAuth inline → redirect to /) added to server.js. Wave 0 test 26 now GREEN. Plan 03 (Wave 2: landing.html) is next.
 
 ## Performance Metrics
 
@@ -56,6 +57,8 @@ Key v2.0 decisions:
 - Atomic counter uses Postgres RPC function increment_generation_count (not app-level read-then-write) — D-07
 - Migration uses LANGUAGE sql VOLATILE — matches Supabase community pattern for simple increment functions
 - Vacuous-pass pattern accepted for negative-assertion stubs in TDD Wave 0 — correct behavior before implementation
+- HTML route auth gate pattern: inline getAuth() + res.redirect('/') — NOT requireUser (returns 401 JSON, wrong for HTML routes)
+- GET /pricing registered as fully public (no auth) per D-12 — pricing page accessible without login
 
 ### Pending Todos
 
@@ -68,5 +71,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-26
-Stopped at: Phase 9 plan 01 complete — 09-01-SUMMARY.md created, 2 RED tests confirmed failing
-Resume: /gsd-execute-phase 9 (plan 02 next)
+Stopped at: Phase 9 plan 02 complete — 09-02-SUMMARY.md created, GET /onboarding redirect test GREEN
+Resume: /gsd-execute-phase 9 (plan 03 next)
