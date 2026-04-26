@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: SaaS
 status: Active
-stopped_at: Phase 9 plan 02 complete — plan 03 (Wave 2 landing.html) next
-last_updated: "2026-04-26T19:07:07Z"
+stopped_at: Phase 9 plan 03 complete — plan 04 (Wave 2 pricing.html) next
+last_updated: "2026-04-26T19:22:00Z"
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 24
-  completed_plans: 21
-  percent: 83
+  completed_plans: 22
+  percent: 87
 ---
 
 # Project State
@@ -27,7 +27,8 @@ See: .planning/PROJECT.md (updated 2026-04-12)
 Phases 6 (Auth), 7 (Course Persistence), and 8 (Billing) complete.
 Phase 8 all 5 plans done — migration, db.js billing functions, server.js usage gate, webhooks.js subscription handlers, index.html fetch() preflight + upgrade prompt. 183 tests passing.
 Phase 9 plan 01 done — Wave 0 TDD RED tests added (2 of 3 fail correctly).
-Phase 9 plan 02 done — GET /pricing route (public) and GET /onboarding auth gate (getAuth inline → redirect to /) added to server.js. Wave 0 test 26 now GREEN. Plan 03 (Wave 2: landing.html) is next.
+Phase 9 plan 02 done — GET /pricing route (public) and GET /onboarding auth gate (getAuth inline → redirect to /) added to server.js. Wave 0 test 26 now GREEN.
+Phase 9 plan 03 done — landing.html updated: nav with Pricing + Sign up free links, hero CTAs corrected to Clerk URLs, features section replaced with 3-step how-it-works + ML course sample preview, bottom CTA updated. No /app links remain. Plan 04 (Wave 2: pricing.html) is next.
 
 ## Performance Metrics
 
@@ -59,6 +60,8 @@ Key v2.0 decisions:
 - Vacuous-pass pattern accepted for negative-assertion stubs in TDD Wave 0 — correct behavior before implementation
 - HTML route auth gate pattern: inline getAuth() + res.redirect('/') — NOT requireUser (returns 401 JSON, wrong for HTML routes)
 - GET /pricing registered as fully public (no auth) per D-12 — pricing page accessible without login
+- Marketing pages (landing.html) must not link to /app — all CTAs link to Clerk auth URLs or /pricing
+- Nav pattern for landing.html: Pricing text link + Sign up free btn-primary on right side
 
 ### Pending Todos
 
@@ -71,5 +74,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-26
-Stopped at: Phase 9 plan 02 complete — 09-02-SUMMARY.md created, GET /onboarding redirect test GREEN
-Resume: /gsd-execute-phase 9 (plan 03 next)
+Stopped at: Phase 9 plan 03 complete — 09-03-SUMMARY.md created, landing.html fully updated
+Resume: /gsd-execute-phase 9 (plan 04 next)
