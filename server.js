@@ -29,8 +29,16 @@ app.use(clerkMiddleware());
 // STEP 3: Landing page — fully static, no auth (D-05)
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
 
-// STEP 4: Onboarding — static, no auth gate (accessible post-signup before session fully established)
-app.get('/onboarding', (req, res) => res.sendFile(path.join(__dirname, 'onboarding.html')));
+// STEP 4: Onboarding — auth-gated; redirect unauthenticated users to landing page (D-03, D-10)
+// Uses inline getAuth() — DO NOT use requireUser (returns 401 JSON, not a redirect — see auth.js)
+app.get('/onboarding', (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.redirect('/');
+  res.sendFile(path.join(__dirname, 'onboarding.html'));
+});
+
+// STEP 4b: Pricing page — fully public, no auth (D-12)
+app.get('/pricing', (req, res) => res.sendFile(path.join(__dirname, 'pricing.html')));
 
 // STEP 5: Static files (CSS, JS assets) — unchanged
 app.use(express.static(__dirname));
