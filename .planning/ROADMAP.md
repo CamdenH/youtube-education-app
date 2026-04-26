@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1–5 (shipped 2026-04-12)
-- 📋 **v2.0 SaaS** — Phases 6–9 (planned)
+- ✅ **v2.0 SaaS** — Phases 6–9 (shipped 2026-04-26)
 
 ## Phases
 
@@ -36,14 +36,14 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
     - [x] 08-03-PLAN.md — server.js usage gate in /api/course-stream + GET /api/usage-check route + counter increment
     - [x] 08-04-PLAN.md — webhooks.js subscriptionItem.active / subscriptionItem.ended handlers
     - [x] 08-05-PLAN.md — index.html fetch() preflight + showUpgradePrompt + .env.example
-- [ ] **Phase 9: SaaS UI / Landing Page** — Marketing page, onboarding, pricing page, upgrade prompts
+- [x] **Phase 9: SaaS UI / Landing Page** — Marketing page, onboarding, pricing page, upgrade prompts — completed 2026-04-26
   - **Plans:** 5 plans
   - Plans:
     - [x] 09-01-PLAN.md — Wave 0: add 3 failing tests to server.test.js (pricing + onboarding auth gate)
     - [x] 09-02-PLAN.md — Wave 1: server.js — add GET /pricing route + /onboarding auth gate (getAuth inline)
     - [x] 09-03-PLAN.md — Wave 2: landing.html — nav links, hero CTAs, how-it-works section, sample preview
     - [x] 09-04-PLAN.md — Wave 2: pricing.html — new file with two-tier card grid + Clerk CTA swap
-    - [ ] 09-05-PLAN.md — Wave 3: onboarding.html — rebuild body with welcome content + tier notice
+    - [x] 09-05-PLAN.md — Wave 3: onboarding.html — rebuild body with welcome content + tier notice
 
 ## Progress
 
@@ -57,4 +57,4 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 | 6. Auth | v2.0 | 3/3 | Complete | 2026-04-13 |
 | 7. Course Persistence | v2.0 | 6/6 | Complete | 2026-04-17 |
 | 8. Billing | v2.0 | 5/5 | Complete | 2026-04-20 |
-| 9. SaaS UI / Landing Page | v2.0 | 4/5 | In progress | - |
+| 9. SaaS UI / Landing Page | v2.0 | 5/5 | Complete | 2026-04-26 |
