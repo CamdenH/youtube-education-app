@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: SaaS
 status: Active
-stopped_at: Phase 8 — complete
-last_updated: "2026-04-20T00:00:00Z"
+stopped_at: Phase 9 plan 01 complete — plan 02 (Wave 1 routing) next
+last_updated: "2026-04-26T00:08:00Z"
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 19
-  completed_plans: 19
-  percent: 75
+  total_plans: 24
+  completed_plans: 20
+  percent: 79
 ---
 
 # Project State
@@ -20,12 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** Surface the best YouTube content for learning a subject with maximum curation precision — the scoring algorithm and Claude prompts are what separate this from a YouTube playlist.
-**Current focus:** v2.0 SaaS — Phase 8 (Billing) complete. Phase 9 (SaaS UI / Landing Page) next.
+**Current focus:** v2.0 SaaS — Phase 9 (SaaS UI / Landing Page) planned. 5 plans in 4 waves ready to execute.
 
 ## Current Position
 
 Phases 6 (Auth), 7 (Course Persistence), and 8 (Billing) complete.
 Phase 8 all 5 plans done — migration, db.js billing functions, server.js usage gate, webhooks.js subscription handlers, index.html fetch() preflight + upgrade prompt. 183 tests passing.
+Phase 9 plan 01 done — Wave 0 TDD RED tests added (2 of 3 fail correctly). Plan 02 (Wave 1: server.js routing) is next.
 
 ## Performance Metrics
 
@@ -66,6 +67,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-20
-Stopped at: Phase 8 complete — all 5 plans done, 183 tests passing
-Resume: Phase 9 (SaaS UI / Landing Page) — run /gsd-discuss-phase 9
+Last session: 2026-04-26
+Stopped at: Phase 9 plan 01 complete — 09-01-SUMMARY.md created, 2 RED tests confirmed failing
+Resume: /gsd-execute-phase 9 (plan 02 next)

@@ -39,7 +39,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [ ] **Phase 9: SaaS UI / Landing Page** — Marketing page, onboarding, pricing page, upgrade prompts
   - **Plans:** 5 plans
   - Plans:
-    - [ ] 09-01-PLAN.md — Wave 0: add 3 failing tests to server.test.js (pricing + onboarding auth gate)
+    - [x] 09-01-PLAN.md — Wave 0: add 3 failing tests to server.test.js (pricing + onboarding auth gate)
     - [ ] 09-02-PLAN.md — Wave 1: server.js — add GET /pricing route + /onboarding auth gate (getAuth inline)
     - [ ] 09-03-PLAN.md — Wave 2: landing.html — nav links, hero CTAs, how-it-works section, sample preview
     - [ ] 09-04-PLAN.md — Wave 2: pricing.html — new file with two-tier card grid + Clerk CTA swap
@@ -57,4 +57,4 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 | 6. Auth | v2.0 | 3/3 | Complete | 2026-04-13 |
 | 7. Course Persistence | v2.0 | 6/6 | Complete | 2026-04-17 |
 | 8. Billing | v2.0 | 5/5 | Complete | 2026-04-20 |
-| 9. SaaS UI / Landing Page | v2.0 | 0/5 | Not started | - |
+| 9. SaaS UI / Landing Page | v2.0 | 1/5 | In progress | - |
