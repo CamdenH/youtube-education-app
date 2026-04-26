@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="description" content="Enter a topic. Get a structured course from the top-rated YouTube videos — scored, sequenced, and ready to watch.">
-  <title>YouTube Learning Curator — Learn anything with the best YouTube has to offer</title>
+  <title>Learn anything with the best YouTube has to offer — YouTube Learning Curator</title>
   <style>
     :root {
       --space-xs: 4px;
@@ -134,14 +134,52 @@
       outline-offset: 2px;
     }
 
-    /* ── Features ───────────────────────────────────────────────────────────── */
+    /* ── Nav ───────────────────────────────────────────────────────────────── */
 
-    .features {
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-lg) 0 var(--space-xl);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: var(--space-md);
+      align-items: center;
+    }
+
+    .nav-link {
+      font-size: var(--font-size-body);
+      color: var(--color-text-muted);
+      text-decoration: none;
+    }
+
+    .nav-link:hover {
+      color: var(--color-text);
+    }
+
+    .nav-link:focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    /* ── How it works ──────────────────────────────────────────────────────── */
+
+    .how-it-works {
       padding: var(--space-xl) 0;
       border-top: 1px solid var(--color-surface-raised);
     }
 
-    .features-list {
+    .how-it-works-heading {
+      font-size: var(--font-size-heading);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-heading);
+      color: var(--color-text);
+      margin: 0 0 var(--space-xl) 0;
+    }
+
+    .steps-list {
       list-style: none;
       margin: 0;
       padding: 0;
@@ -150,13 +188,21 @@
       gap: var(--space-xl);
     }
 
-    .feature-item {
+    .step-item {
       display: flex;
       flex-direction: column;
       gap: var(--space-xs);
     }
 
-    .feature-heading {
+    .step-number {
+      font-size: var(--font-size-label);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-accent);
+      margin: 0;
+      line-height: var(--line-height-label);
+    }
+
+    .step-heading {
       font-size: var(--font-size-heading);
       font-weight: var(--font-weight-semibold);
       line-height: var(--line-height-heading);
@@ -164,12 +210,96 @@
       margin: 0;
     }
 
-    .feature-description {
+    .step-description {
       font-size: var(--font-size-body);
-      font-weight: var(--font-weight-regular);
       color: var(--color-text-muted);
       line-height: var(--line-height-body);
       margin: 0;
+    }
+
+    /* ── Sample course preview ──────────────────────────────────────────────── */
+
+    .sample-preview {
+      padding: var(--space-xl) 0;
+      border-top: 1px solid var(--color-surface-raised);
+    }
+
+    .sample-preview-heading {
+      font-size: var(--font-size-heading);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-heading);
+      color: var(--color-text);
+      margin: 0 0 var(--space-md) 0;
+    }
+
+    .preview-card {
+      background: var(--color-surface);
+      border-radius: 8px;
+      padding: var(--space-md);
+      border: 1px solid var(--color-surface-raised);
+    }
+
+    .preview-course-title {
+      font-size: var(--font-size-body);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text);
+      margin: 0 0 var(--space-xs) 0;
+    }
+
+    .module-heading {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      margin: 0 0 var(--space-md) 0;
+    }
+
+    .video-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+
+    .video-item {
+      background: var(--color-surface-raised);
+      border-radius: 6px;
+      padding: var(--space-sm) var(--space-md);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-sm);
+    }
+
+    .video-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .video-title {
+      font-size: var(--font-size-body);
+      color: var(--color-text);
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .video-channel {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      margin: 0;
+    }
+
+    .score-badge {
+      font-size: var(--font-size-label);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-accent);
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     /* ── CTA section ────────────────────────────────────────────────────────── */
