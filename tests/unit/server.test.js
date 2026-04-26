@@ -672,3 +672,43 @@ test('GET /api/course-stream passes gate and opens SSE when usage is within limi
     server.close();
   }
 });
+
+// ── Phase 9: SaaS UI routing ───────────────────────────────────────────────
+
+test('GET /pricing returns 200 and HTML content', async () => {
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/pricing`);
+    assert.strictEqual(res.status, 200);
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /onboarding unauthenticated redirects to /', async () => {
+  _clerkGetAuthImpl = () => ({ userId: null });
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/onboarding`, { redirect: 'manual' });
+    assert.strictEqual(res.status, 302);
+    assert.strictEqual(res.headers.get('location'), '/');
+  } finally {
+    _clerkGetAuthImpl = () => ({ userId: null });
+    server.close();
+  }
+});
+
+test('GET /onboarding authenticated returns 200', async () => {
+  _clerkGetAuthImpl = () => ({ userId: 'user_test123' });
+  const server = app.listen(0);
+  const port = server.address().port;
+  try {
+    const res = await fetch(`http://localhost:${port}/onboarding`);
+    assert.strictEqual(res.status, 200);
+  } finally {
+    _clerkGetAuthImpl = () => ({ userId: null });
+    server.close();
+  }
+});
