@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Start free with 1 course per month. Upgrade to Early Access for 20 courses per month.">
+  <title>Pricing — YouTube Learning Curator</title>
+  <style>
+    :root {
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+      --space-3xl: 64px;
+
+      --font-size-label: 14px;
+      --font-size-body: 16px;
+      --font-size-heading: 20px;
+      --font-size-display: 28px;
+      --font-weight-regular: 400;
+      --font-weight-semibold: 600;
+      --line-height-body: 1.5;
+      --line-height-label: 1.4;
+      --line-height-heading: 1.2;
+      --line-height-display: 1.15;
+
+      --color-bg: #0f0f0f;
+      --color-surface: #1a1a1a;
+      --color-surface-raised: #242424;
+      --color-text: #f0f0f0;
+      --color-text-muted: #a0a0a0;
+      --color-accent: #3b82f6;
+      --color-success: #22c55e;
+      --color-destructive: #ef4444;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: var(--font-size-body);
+      line-height: var(--line-height-body);
+      margin: 0;
+      padding: 0;
+    }
+
+    .page-wrapper {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: var(--space-lg);
+    }
+
+    /* ── Header nav ─────────────────────────────────────────────────────────── */
+
+    .nav-brand {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      line-height: var(--line-height-label);
+    }
+
+    .btn-primary {
+      display: inline-block;
+      background: var(--color-accent);
+      color: white;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: var(--font-size-body);
+      font-family: inherit;
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-body);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn-primary:focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    /* ── Footer ─────────────────────────────────────────────────────────────── */
+
+    footer {
+      padding: var(--space-xl) 0 var(--space-lg);
+      border-top: 1px solid var(--color-surface-raised);
+    }
+
+    .footer-text {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      margin: 0;
+      line-height: var(--line-height-label);
+    }
+
+    /* ── Nav ───────────────────────────────────────────────────────────────── */
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-lg) 0 var(--space-xl);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: var(--space-md);
+      align-items: center;
+    }
+
+    .nav-link {
+      font-size: var(--font-size-body);
+      color: var(--color-text-muted);
+      text-decoration: none;
+    }
+
+    .nav-link:hover {
+      color: var(--color-text);
+    }
+
+    .nav-link:focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    /* ── Pricing page heading ───────────────────────────────────────────────── */
+
+    .pricing-heading {
+      font-size: var(--font-size-display);
+      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-display);
+      color: var(--color-text);
+      margin: 0 0 var(--space-xl) 0;
+    }
+
+    /* ── Pricing grid ───────────────────────────────────────────────────────── */
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-xl);
+      margin-bottom: var(--space-xl);
+    }
+
+    .pricing-card {
+      background: var(--color-surface);
+      border-radius: 8px;
+      padding: var(--space-xl);
+      border: 1px solid var(--color-surface-raised);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+
+    .pricing-card--featured {
+      border-color: var(--color-accent);
+    }
+
+    .pricing-card-name {
+      font-size: var(--font-size-heading);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text);
+      margin: 0;
+    }
+
+    .pricing-card-price {
+      font-size: var(--font-size-display);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-text);
+      margin: 0;
+    }
+
+    .pricing-card-period {
+      font-size: var(--font-size-label);
+      color: var(--color-text-muted);
+      font-weight: var(--font-weight-regular);
+    }
+
+    .pricing-card-limit {
+      font-size: var(--font-size-body);
+      color: var(--color-text-muted);
+      margin: 0;
+    }
+
+    .pricing-feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      flex: 1;
+    }
+
+    .pricing-feature-item {
+      font-size: var(--font-size-body);
+      color: var(--color-text-muted);
+      display: flex;
+      gap: var(--space-sm);
+      align-items: flex-start;
+    }
+
+    .pricing-feature-check {
+      color: var(--color-success);
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 480px) {
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .pricing-heading {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <!-- Nav -->
+    <header>
+      <nav class="nav">
+        <span class="nav-brand">YouTube Learning Curator</span>
+        <div class="nav-links">
+          <a href="https://accounts.comoedu.com/sign-in" class="nav-link">Sign in</a>
+        </div>
+      </nav>
+    </header>
+
+    <!-- Pricing section -->
+    <main>
+      <section aria-label="Pricing">
+        <h1 class="pricing-heading">Pricing</h1>
+        <div class="pricing-grid">
+          <!-- Free card -->
+          <div class="pricing-card">
+            <p class="pricing-card-name">Free</p>
+            <p class="pricing-card-price">$0 <span class="pricing-card-period">per month</span></p>
+            <p class="pricing-card-limit">1 course per month</p>
+            <ul class="pricing-feature-list">
+              <li class="pricing-feature-item"><span class="pricing-feature-check">&#10003;</span> AI-curated YouTube courses</li>
+              <li class="pricing-feature-item"><span class="pricing-feature-check">&#10003;</span> Structured modules + comprehension questions</li>
+              <li class="pricing-feature-item"><span class="pricing-feature-check">&#10003;</span> Hint generation</li>
+            </ul>
+            <a href="https://accounts.comoedu.com/sign-up" class="btn-primary">Get started</a>
+          </div>
+          <!-- Early Access card -->
+          <div class="pricing-card pricing-card--featured">
+            <p class="pricing-card-name">Early Access</p>
+            <p class="pricing-card-price">$10 <span class="pricing-card-period">per month</span></p>
+            <p class="pricing-card-limit">20 courses per month</p>
+            <ul class="pricing-feature-list">
+              <li class="pricing-feature-item"><span class="pricing-feature-check">&#10003;</span> AI-curated YouTube courses</li>
+              <li class="pricing-feature-item"><span class="pricing-feature-check">&#10003;</span> Structured modules + comprehension questions</li>
+              <li class="pricing-feature-item"><span class="pricing-feature-check">&#10003;</span> Hint generation</li>
+              <li class="pricing-feature-item"><span class="pricing-feature-check">&#10003;</span> Priority support</li>
+            </ul>
+            <a id="upgrade-cta" href="https://accounts.comoedu.com/sign-up" class="btn-primary">Upgrade now</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <p class="footer-text">YouTube Learning Curator</p>
+    </footer>
+  </div>
+
+  <!-- window.__upgradeUrl: Option B — hardcode empty string; falls back to sign-up URL when empty -->
+  <!-- Source: RESEARCH.md Pattern 3 Pitfall 2 — Option B chosen for flat-file consistency -->
+  <script>window.__upgradeUrl = '';</script>
+
+  <!-- Clerk JS — copy exact script tag from index.html -->
+  <script
+    defer
+    crossorigin="anonymous"
+    data-clerk-publishable-key="pk_live_Y2xlcmsuY29tb2VkdS5jb20k"
+    src="https://clerk.comoedu.com/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
+    type="text/javascript"
+  ></script>
+
+  <!-- Client-side auth detection: swap "Upgrade now" CTA for authed users -->
+  <!-- Source: index.html lines 1652-1663 — same Clerk.load() pattern -->
+  <script>
+    window.addEventListener('load', async function () {
+      await Clerk.load({
+        signInUrl: 'https://accounts.comoedu.com/sign-in',
+        signUpUrl: 'https://accounts.comoedu.com/sign-up',
+      });
+      if (Clerk.user && window.__upgradeUrl) {
+        var upgradeBtn = document.getElementById('upgrade-cta');
+        if (upgradeBtn) upgradeBtn.href = window.__upgradeUrl;
+      }
+    });
+  </script>
+</body>
+</html>
