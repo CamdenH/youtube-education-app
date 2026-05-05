@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: SaaS
-status: Complete
-stopped_at: Phase 9 plan 05 complete — all 5 plans done, Phase 9 complete, v2.0 SaaS complete
-last_updated: "2026-04-26T19:22:40Z"
+status: Archived
+stopped_at: v2.0 milestone archived 2026-05-05 — all phases complete, retrospective written, git tag pending
+last_updated: "2026-05-05T00:00:00Z"
 progress:
   total_phases: 4
   completed_phases: 4
@@ -17,10 +17,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-12)
+See: .planning/PROJECT.md (updated 2026-05-05)
 
 **Core value:** Surface the best YouTube content for learning a subject with maximum curation precision — the scoring algorithm and Claude prompts are what separate this from a YouTube playlist.
-**Current focus:** v2.0 SaaS — Phase 9 (SaaS UI / Landing Page) planned. 5 plans in 4 waves ready to execute.
+**Current focus:** v2.0 archived. Planning next milestone (v3.0). Run `/gsd-new-milestone` to begin.
 
 ## Current Position
 
@@ -76,6 +76,17 @@ None.
 ### Blockers/Concerns
 
 None.
+
+## Deferred Items
+
+Items acknowledged and deferred at milestone close on 2026-05-04:
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 09 — 09-HUMAN-UAT.md | partial (4 pending scenarios) |
+| verification_gap | Phase 07 — 07-VERIFICATION.md | human_needed |
+| verification_gap | Phase 08 — 08-VERIFICATION.md | human_needed |
+| verification_gap | Phase 09 — 09-VERIFICATION.md | human_needed |
 
 ## Session Continuity
 

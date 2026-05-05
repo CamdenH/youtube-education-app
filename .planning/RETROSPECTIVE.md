@@ -45,6 +45,52 @@
 
 ---
 
+## Milestone: v2.0 — SaaS
+
+**Shipped:** 2026-04-26
+**Phases:** 4 (6–9) | **Plans:** 19 | **Timeline:** 14 days (2026-04-12 → 2026-04-26)
+
+### What Was Built
+- Clerk auth: `requireUser` middleware, idempotent user upsert via `user.created` webhook (svix HMAC-SHA256), landing.html + onboarding.html static pages
+- Supabase persistence: global JSONB cache table (replaced .cache/ filesystem), per-user courses table with RLS, async cache.js rewrite
+- Clerk Billing: free/early_access tiers, atomic `increment_generation_count` Postgres RPC, `subscriptionItem.active/ended` webhook handlers
+- Usage gate: fetch() preflight before EventSource catches 429 (native SSE can't read HTTP status); DOM-constructed upgrade prompt
+- Marketing pages: landing.html (nav + how-it-works + sample preview), pricing.html (two-tier grid + Clerk auth detection), onboarding.html (welcome flow + tier notice)
+- 186 passing tests at close
+
+### What Worked
+- **TDD wave 0 across all phases:** Planting RED stubs in phase 8 plan 01 before implementing billing functions (plans 02–04) kept the test baseline honest — every implementation plan had a concrete RED target to turn GREEN
+- **Postgres RPC for atomic counter:** `increment_generation_count` as a server-side SQL function eliminated the app-level read-then-write race condition entirely — the right call, made early
+- **Middleware route order discipline:** Establishing the exact middleware order (raw body → clerkMiddleware → static → json → protected routes) in a single plan prevented subtle auth bugs across all subsequent phases
+- **fetch() preflight pattern for gated SSE:** The insight that native EventSource can't read HTTP status codes led to a clean architectural pattern — fetch first, then open EventSource only on success
+- **Short phases (5–12 min each in phase 9):** Tight, single-responsibility plans made phase 9 feel smooth — each plan delivered exactly one thing with no ambiguity
+
+### What Was Inefficient
+- **Human checkpoint blocking:** Plans that required human-run SQL migrations (07-01, 08-01) created cross-session waits — the migration + checkpoint pattern works but adds friction; future phases could pre-stage migrations in earlier plans
+- **Clerk CDN placeholder values:** Shipping onboarding/landing with `CLERK_PUBLISHABLE_KEY_PLACEHOLDER` in the HTML creates a manual deploy step that's easy to forget; should be wired via env var server-side injection in a future phase
+- **3 VERIFICATION.md files left at human_needed:** Phases 7–9 human verification was never completed — browser testing, live Clerk flows, and webhook end-to-end weren't run. Deferred at close.
+- **watched state deferred:** Per-user watched checkboxes were listed as an Active v2.0 requirement but never planned into a phase — surfaced only at milestone close
+
+### Patterns Established
+- `getAuth(req)` inline for HTML route auth gates (not `requireUser` which returns 401 JSON — wrong for HTML routes)
+- Fetch preflight before EventSource: `checkUsageGate()` async → `showUpgradePrompt()` on 429 → `new EventSource(...)` only on `allowed: true`
+- `subscriptionItem.active/ended` (not `subscription.created/deleted`) — Clerk Billing event names that actually fire
+- Vacuous-pass TDD pattern: negative-assertion stubs (assert NO call was made) are trivially GREEN before implementation — correct TDD behavior, not a false positive
+- Marketing pages never link to `/app` — all CTAs on unauthenticated pages point to Clerk auth URLs or `/pricing`
+
+### Key Lessons
+1. **Know your webhook event names before you write the handler.** `subscriptionItem.active/ended` vs `subscription.created/deleted` — Clerk fires the former, not the latter. Confirmed in research phase, saved a debugging session.
+2. **The fetch() preflight pattern solves SSE rate-gating cleanly.** Native EventSource has no error handling for HTTP status — if you need to gate an SSE stream, always preflight with fetch(). Now a permanent pattern.
+3. **Atomic DB operations belong in the DB, not the app.** The usage counter increment is a single SQL UPDATE on the server — no read-then-write, no race condition. Apply this to any counter or boolean flip that gets concurrent writes.
+4. **Plan human verification tasks explicitly.** All three VERIFICATION.md files ended as `human_needed` with no clear owner or timeline. Future milestones should include an explicit "human UAT" plan with acceptance criteria.
+
+### Cost Observations
+- Model mix: primarily sonnet (planning + implementation), haiku for scoring/queries at runtime
+- Sessions: multiple across 14 days
+- Notable: 14-day milestone (vs 25 days for v1.0) — SaaS infra work was well-scoped; most phases completed in one session
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -52,14 +98,19 @@
 | Milestone | Phases | Plans | Key Change |
 |-----------|--------|-------|------------|
 | v1.0 MVP | 5 | 18 | Established baseline — TDD wave 0, require.cache mocking, flat module structure |
+| v2.0 SaaS | 4 | 19 | Clerk+Supabase stack; fetch() preflight pattern; atomic Postgres RPC; HTML route auth gate pattern |
 
 ### Cumulative Quality
 
-| Milestone | Tests | Zero-Dep Additions |
+| Milestone | Tests | Dependencies Added |
 |-----------|-------|-------------------|
 | v1.0 | 124+ | @anthropic-ai/sdk only (Phase 2) |
+| v2.0 | 186 | @supabase/supabase-js, @clerk/express, svix |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Cache before quota — always build the cache layer before iterating on quota-sensitive APIs
 2. Batch Claude calls — group same-type inference into one call; never call per-item in a loop
+3. Know your webhook event names before writing the handler — Clerk fires `subscriptionItem.*`, not `subscription.*`
+4. Atomic DB operations belong in the DB — counters/flags with concurrent writes go in a Postgres RPC, not app-level read-then-write
+5. Plan human verification explicitly — `human_needed` items without an owner or timeline become deferred debt at milestone close

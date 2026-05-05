@@ -35,19 +35,22 @@ Surface the best YouTube content for learning a subject with maximum curation pr
 - ✓ Markdown export (modules, titles, YouTube links, questions — no user answers) — v1.0
 - ✓ Dark mode by default, mobile responsive at 375px — v1.0
 
-### Active (v2.0 SaaS)
+**Shipped in v2.0 SaaS:**
+- ✓ User authentication via Clerk (sign up, sign in, session management) — v2.0
+- ✓ Protected routes — course generation requires authenticated user — v2.0
+- ✓ Per-user course history stored in Supabase (replaces localStorage history) — v2.0
+- ✓ File cache replaced by Supabase JSONB cache table (global, MD5-keyed — D-01) — v2.0
+- ✓ Subscription tiers via Clerk Billing (free: 1/month, early_access: 20/month) — v2.0
+- ✓ Usage gates: free tier limited to 1 course generation per month — v2.0
+- ✓ Billing webhooks (idempotent) for subscriptionItem.active/ended events — v2.0
+- ✓ Marketing landing page with how-it-works, sample preview, and CTA — v2.0
+- ✓ Onboarding flow (post-signup) explaining course generation and tier limits — v2.0
+- ✓ Upgrade prompts shown when free user hits usage gate — v2.0
 
-- [ ] User authentication via Clerk (sign up, sign in, session management)
-- [ ] Protected routes — course generation requires authenticated user
-- [ ] Per-user course history stored in Supabase (replaces localStorage history)
-- [ ] File cache replaced by Supabase cache table per user
-- [ ] Subscription tiers via Clerk Billing (free / pro / power)
-- [ ] Usage gates: free tier limited to N course generations per month
-- [ ] Billing webhooks (idempotent) for subscription lifecycle events
-- [ ] Marketing landing page with pricing, feature highlights, and CTA
-- [ ] Onboarding flow (post-signup) explaining course generation
-- [ ] Upgrade prompts shown when free user hits usage gate
-- [ ] Per-user watched state and progress stored in Supabase
+### Active (v3.0)
+
+- [ ] Per-user watched state and progress stored in Supabase (deferred from v2.0)
+- [ ] Railway deployment — live production environment
 
 ### Out of Scope
 
@@ -59,18 +62,16 @@ Surface the best YouTube content for learning a subject with maximum curation pr
 
 ## Context
 
-**Shipped v1.0:** ~2,776 LOC across server.js, youtube.js, sse.js, claude.js, cache.js, transcript.js, assembler.js, queries.js, scorer.js, and index.html. 124+ passing tests via node:test.
+**Shipped v2.0:** ~4,200 LOC across server.js, youtube.js, sse.js, claude.js, cache.js, transcript.js, assembler.js, queries.js, scorer.js, db.js, auth.js, webhooks.js, index.html, landing.html, onboarding.html, pricing.html. 186 passing tests via node:test.
 
-**Tech stack v1.0:** Node.js + Express + vanilla JS; YouTube Data API v3; Anthropic Claude API; file-based MD5 cache.
+**Tech stack:** Node.js + Express + vanilla JS; YouTube Data API v3; Anthropic Claude API; Supabase (Postgres — cache + courses + users tables); Clerk (auth + billing); Railway (hosting target).
 
-**Tech stack additions for v2.0:** Clerk (auth + billing), Supabase (Postgres), Railway (hosting).
-
-**Architecture:** Single-layer flat structure — no src/ subdirectory. All modules at root. Pattern established and validated in v1.0; continue in v2.0.
+**Architecture:** Single-layer flat structure — no src/ subdirectory. All modules at root. Validated across v1.0 and v2.0.
 
 **Known tech debt:**
-- File cache (.cache/) is a dev shortcut — must be replaced by Supabase cache table in Phase 7
-- localStorage history/watched state must migrate to Supabase in Phase 7
-- REQUIREMENTS.md traceability table was not updated as phases 2–5 completed (documentation gap)
+- Watched checkbox state still in localStorage — not migrated to Supabase (deferred to v3.0)
+- Clerk placeholder values in index.html CDN script require manual substitution before deploy
+- Human verification items (phases 7–9) pending browser/live-service testing
 
 ## Constraints
 
@@ -95,8 +96,16 @@ Surface the best YouTube content for learning a subject with maximum curation pr
 | MD5 hash cache keys | Deterministic, reproducible, human-debuggable filenames | ✓ Good |
 | node:test built-in as test runner | Zero install cost, async support, sufficient for pure functions | ✓ Good — 124+ tests |
 | videoDuration: 'any' in searchVideos | Duration filtering deferred to Phase 2 scoring to save quota | ✓ Good — Phase 2 scoring handles it |
-| Clerk + Supabase + Railway for SaaS | Fastest path to production auth+billing+DB without infra ops | — Pending (v2.0) |
-| Clerk Billing over Stripe directly | Clerk handles subscription UI + webhooks + user linkage natively | — Pending (v2.0) |
+| Clerk + Supabase + Railway for SaaS | Fastest path to production auth+billing+DB without infra ops | ✓ Good — clean integration, zero custom session code |
+| Clerk Billing over Stripe directly | Clerk handles subscription UI + webhooks + user linkage natively | ✓ Good — subscriptionItem events map cleanly to plan column |
+| Global cache (no user_id key) | Same query from any user hits same cache row — saves YouTube quota at scale | ✓ Good — intentional D-01 decision |
+| courses.user_id as TEXT (Clerk ID), not FK | Avoids webhook timing race — no users row needed before course save | ✓ Good — eliminated a whole class of race conditions |
+| Atomic counter via Postgres RPC | Prevents double-count under concurrent requests; no app-level read-then-write | ✓ Good — increment_generation_count RPC is clean |
+| subscriptionItem.active/ended (not subscription.*) | Clerk Billing fires subscriptionItem events, not subscription events | ✓ Good — correct event names; common mistake avoided |
+| HTML route auth gate: inline getAuth() + redirect | requireUser returns 401 JSON, wrong for HTML routes; inline getAuth gives redirect | ✓ Good — pattern locked for all HTML auth gates |
+| window.__upgradeUrl Option B (empty string) | No server injection, no XSS; falsy guard skips CTA swap when URL absent | ✓ Good — simple and safe |
+| fetch() preflight before EventSource | Native EventSource cannot read HTTP status; fetch() catches 429 before SSE opens | ✓ Good — clean UX pattern for gated SSE |
+| Marketing pages never link to /app | Landing/pricing pages link to Clerk auth URLs only — no /app on unauthenticated pages | ✓ Good — clean separation of marketing vs. app |
 
 ---
-*Last updated: 2026-04-12 after v1.0 milestone*
+*Last updated: 2026-05-04 after v2.0 milestone*
